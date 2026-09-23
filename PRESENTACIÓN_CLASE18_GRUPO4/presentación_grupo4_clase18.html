@@ -1,0 +1,2806 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Patrones de Diseño GoF - Evolución de un Sistema de Pedidos</title>
+
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Syne:wght@700;800&family=JetBrains+Mono:wght@400;500;700&display=swap"
+    rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            display: ['"Syne"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              cream: '#FAF8F5',
+              dark: '#0F172A',
+              slate: '#1E293B',
+              adapter: '#8B5CF6',   /* Violeta */
+              factory: '#2563EB',   /* Azul */
+              singleton: '#EA580C', /* Naranja */
+              facade: '#0891B2',    /* Turquesa */
+              strategy: '#059669',  /* Verde */
+              composite: '#D946EF'  /* Fuchsia */
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * {
+      user-select: none;
+    }
+
+    body {
+      background-color: #0F172A;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      color: #0F172A;
+      overflow: hidden;
+    }
+
+    .font-display {
+      font-family: 'Syne', sans-serif;
+    }
+
+    /* Contenedor relación aspecto 16:9 de diapositivas */
+    .slide-stage {
+      background-color: #FAF8F5;
+      width: 100vw;
+      height: 100vh;
+      max-width: 100vw;
+      max-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .bento-card {
+      background: #FFFFFF;
+      border: 1px solid #E2E8F0;
+      border-radius: 1rem;
+      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    }
+
+    .dark-card {
+      background: #0F172A;
+      border: 1px solid #334155;
+      color: #F8FAFC;
+      border-radius: 1rem;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    }
+
+    .badge-pill {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.25rem 0.85rem;
+      border-radius: 9999px;
+      font-weight: 700;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+    }
+
+    .uml-box {
+      background: #1E293B;
+      border: 1.5px solid #475569;
+      border-radius: 0.65rem;
+      padding: 0.5rem 0.75rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.7rem;
+      color: #F8FAFC;
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+    }
+
+    /* Animaciones suaves de presentación */
+    .slide-enter {
+      animation: slideInRight 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: scale(0.98) translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: scale(1) translateY(0);
+      }
+    }
+
+    /* Temas específicos por patrón */
+    .theme-adapter {
+      border-color: #8B5CF6 !important;
+      color: #8B5CF6;
+    }
+
+    .theme-factory {
+      border-color: #2563EB !important;
+      color: #2563EB;
+    }
+
+    .theme-singleton {
+      border-color: #EA580C !important;
+      color: #EA580C;
+    }
+
+    .theme-facade {
+      border-color: #0891B2 !important;
+      color: #0891B2;
+    }
+
+    .theme-strategy {
+      border-color: #059669 !important;
+      color: #059669;
+    }
+
+    .theme-composite {
+      border-color: #D946EF !important;
+      color: #D946EF;
+    }
+
+    .bg-adapter-light {
+      background-color: #F3E8FF;
+      color: #6B21A8;
+    }
+
+    .bg-factory-light {
+      background-color: #DBEAFE;
+      color: #1E40AF;
+    }
+
+    .bg-singleton-light {
+      background-color: #FFEDD5;
+      color: #9A3412;
+    }
+
+    .bg-facade-light {
+      background-color: #CFFAFE;
+      color: #155E75;
+    }
+
+    .bg-strategy-light {
+      background-color: #D1FAE5;
+      color: #065F46;
+    }
+
+    .bg-composite-light {
+      background-color: #FAE8FF;
+      color: #86198F;
+    }
+
+    /* Control táctil/mouse para avanzar */
+    .click-stage {
+      cursor: pointer;
+    }
+  </style>
+</head>
+
+<body class="flex items-center justify-center min-h-screen">
+
+  <div id="presentation-stage" class="slide-stage p-6 md:p-10 click-stage" onclick="advanceSlideOnStageClick(event)">
+
+    <!-- HEADER DISCRETO DE LA PRESENTACIÓN (MODO DIAPOSITIVA) -->
+    <header class="flex justify-between items-center border-b border-zinc-200/80 pb-3">
+      <div class="flex items-center gap-3">
+        <span class="w-3 h-3 rounded-full bg-purple-600 animate-pulse"></span>
+        <span id="slide-topic-badge" class="badge-pill bg-purple-100 text-purple-800">
+          Cargando exposición...
+        </span>
+      </div>
+      <div class="flex items-center gap-4">
+        <span id="slide-counter" class="font-mono text-xs font-bold text-zinc-400">
+          01 / 23
+        </span>
+        <!-- Botón de pantalla completa minimalista -->
+        <button onclick="toggleFullScreen(event)"
+          class="text-zinc-400 hover:text-zinc-800 text-xs font-mono bg-zinc-100 hover:bg-zinc-200 px-2.5 py-1 rounded-md transition-all">
+          ⛶ Pantalla Completa
+        </button>
+      </div>
+    </header>
+
+    <!-- ÁREA DE CONTENIDO DE LA DIAPOSITIVA ACTUAL -->
+    <main class="flex-1 my-4 flex flex-col justify-center relative overflow-hidden">
+
+      <!-- ========================================== -->
+      <!-- SLIDE 01: PORTADA -->
+      <!-- ========================================== -->
+      <div id="slide-1" class="slide-content slide-enter space-y-8 max-w-5xl mx-auto w-full text-center py-6">
+        <div class="space-y-3">
+          <span class="badge-pill bg-purple-100 text-purple-700 text-xs">
+            Diseño de Sistemas de Información • Exposición Oral
+          </span>
+          <h1 class="text-5xl md:text-7xl font-extrabold font-display text-zinc-900 tracking-tight">
+            Patrones de Diseño GoF
+          </h1>
+          <p class="text-xl md:text-2xl font-medium text-purple-600 font-display">
+            Evolución de un Sistema de Gestión de Pedidos
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto pt-4">
+          <div
+            class="bento-card p-6 text-center space-y-3 bg-gradient-to-b from-purple-50/60 to-white border-purple-200 shadow-sm">
+            <div
+              class="w-12 h-12 bg-purple-600 text-white rounded-2xl mx-auto flex items-center justify-center font-bold text-xl shadow-md">
+              📋
+            </div>
+            <div>
+              <h3 class="font-bold text-zinc-900 font-display text-base">Acceso QR 1</h3>
+              <p class="text-xs text-zinc-500 mt-1">Fichas técnicas ejecutivas de los seis patrones GoF</p>
+            </div>
+            <div
+              class="w-24 h-24 mx-auto bg-slate-900 text-white rounded-xl flex items-center justify-center font-mono text-[9px] border-2 border-purple-300">
+              [ CÓDIGO QR 1 ]
+            </div>
+          </div>
+
+          <div
+            class="bento-card p-6 text-center space-y-3 bg-gradient-to-b from-pink-50/60 to-white border-pink-200 shadow-sm">
+            <div
+              class="w-12 h-12 bg-pink-600 text-white rounded-2xl mx-auto flex items-center justify-center font-bold text-xl shadow-md">
+              🖥️
+            </div>
+            <div>
+              <h3 class="font-bold text-zinc-900 font-display text-base">Acceso QR 2</h3>
+              <p class="text-xs text-zinc-500 mt-1">Soporte visual navegable proyectado en la exposición</p>
+            </div>
+            <div
+              class="w-24 h-24 mx-auto bg-slate-900 text-white rounded-xl flex items-center justify-center font-mono text-[9px] border-2 border-pink-300">
+              [ CÓDIGO QR 2 ]
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 02: CONCEPTO GOF & LAS 3 FAMILIAS -->
+      <!-- ========================================== -->
+      <div id="slide-2" class="slide-content slide-enter space-y-6 max-w-6xl mx-auto w-full hidden">
+        <div>
+          <span class="badge-pill bg-purple-100 text-purple-700">Marco Teórico de Diseño</span>
+          <h2 class="text-3xl font-extrabold font-display text-zinc-900 mt-1">¿Qué es un Patrón de Diseño GoF?</h2>
+          <p class="text-sm text-zinc-600 mt-1">
+            Una solución general y reutilizable a un problema recurrente. <strong class="text-purple-700">No es código
+              pegado</strong>: es un concepto estructural de alto nivel de abstracción.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div class="bento-card p-6 border-l-4 border-l-blue-600 bg-gradient-to-b from-blue-50/30 to-white">
+            <span class="text-xs font-mono font-bold text-blue-600 block mb-1">FAMILIA 01</span>
+            <h3 class="font-bold font-display text-zinc-900 text-lg">Creacionales</h3>
+            <p class="text-xs text-zinc-600 mt-2">¿Cómo se crean los objetos sin acoplar la aplicación?</p>
+            <div class="mt-6 pt-4 border-t border-zinc-100 font-mono text-xs text-blue-900 space-y-1.5 font-semibold">
+              <p>• Factory (Factoría)</p>
+              <p>• Singleton (Instancia Única)</p>
+            </div>
+          </div>
+
+          <div class="bento-card p-6 border-l-4 border-l-purple-600 bg-gradient-to-b from-purple-50/30 to-white">
+            <span class="text-xs font-mono font-bold text-purple-600 block mb-1">FAMILIA 02</span>
+            <h3 class="font-bold font-display text-zinc-900 text-lg">Estructurales</h3>
+            <p class="text-xs text-zinc-600 mt-2">¿Cómo se organizan y relacionan clases y objetos?</p>
+            <div class="mt-6 pt-4 border-t border-zinc-100 font-mono text-xs text-purple-900 space-y-1.5 font-semibold">
+              <p>• Adapter (Adaptador)</p>
+              <p>• Facade (Fachada)</p>
+              <p>• Composite (Objeto Compuesto)</p>
+            </div>
+          </div>
+
+          <div class="bento-card p-6 border-l-4 border-l-emerald-600 bg-gradient-to-b from-emerald-50/30 to-white">
+            <span class="text-xs font-mono font-bold text-emerald-600 block mb-1">FAMILIA 03</span>
+            <h3 class="font-bold font-display text-zinc-900 text-lg">Comportamiento</h3>
+            <p class="text-xs text-zinc-600 mt-2">¿Cómo colaboran e intercambian responsabilidades?</p>
+            <div
+              class="mt-6 pt-4 border-t border-zinc-100 font-mono text-xs text-emerald-900 space-y-1.5 font-semibold">
+              <p>• Strategy (Estrategia)</p>
+            </div>
+          </div>
+        </div>
+
+        <div
+          class="p-4 rounded-2xl bg-slate-900 text-white text-xs font-mono flex items-center justify-between shadow-lg">
+          <span class="text-amber-300">💡 <strong>Pregunta Guía de Diseño:</strong> "¿Tengo exactamente el problema que
+            este patrón resuelve?"</span>
+          <span class="text-purple-300 font-semibold hidden md:inline">Vocabulario Común de Arquitectura</span>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 03: SISTEMA INICIAL DE PEDIDOS -->
+      <!-- ========================================== -->
+      <div id="slide-3" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+        <div>
+          <span class="badge-pill bg-zinc-200 text-zinc-700">Punto de Partida • Contexto de Negocio</span>
+          <h2 class="text-2xl md:text-3xl font-extrabold font-display text-zinc-900 mt-1">Sistema Inicial de Gestión de
+            Pedidos</h2>
+          <p class="text-xs md:text-sm text-zinc-600">Estructura directa antes de la aparición de nuevos requerimientos
+            complejos.</p>
+        </div>
+
+        <div class="dark-card p-6 relative">
+          <span class="text-xs font-mono text-purple-400 font-bold block mb-4">ESQUEMA UML INICIAL DE LA APLICACIÓN DE
+            PEDIDOS</span>
+
+          <!-- Diagrama vectorial SVG con relaciones reales ortogonales -->
+          <div class="relative w-full max-w-2xl mx-auto h-[260px]">
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+              <defs>
+                <marker id="arrow-white" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6"
+                  orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#FFFFFF" />
+                </marker>
+                <marker id="arrow-purple" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6"
+                  orient="auto-start-reverse">
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#A855F7" />
+                </marker>
+              </defs>
+              <!-- Cliente → Pedido -->
+              <line x1="50%" y1="36" x2="50%" y2="60" stroke="#A855F7" stroke-width="2"
+                marker-end="url(#arrow-purple)" />
+
+              <!-- Pedido → Precio -->
+              <line x1="40%" y1="118" x2="26%" y2="150" stroke="#A855F7" stroke-width="2"
+                marker-end="url(#arrow-purple)" />
+
+              <!-- Pedido → Pago -->
+              <line x1="50%" y1="118" x2="50%" y2="140" stroke="#A855F7" stroke-width="2"
+                marker-end="url(#arrow-purple)" />
+
+              <!-- Pedido → Envío -->
+              <line x1="60%" y1="118" x2="74%" y2="150" stroke="#A855F7" stroke-width="2"
+                marker-end="url(#arrow-purple)" />
+
+              <!-- Precio → Stock -->
+              <line x1="26%" y1="195" x2="40%" y2="210" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#arrow-white)" />
+
+              <!-- Pago → Stock -->
+              <line x1="50%" y1="195" x2="50%" y2="210" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#arrow-white)" />
+
+              <!-- Envío → Stock -->
+              <line x1="74%" y1="195" x2="60%" y2="210" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#arrow-white)" />
+            </svg>
+
+            <!-- Nodos del Diagrama -->
+            <div class="absolute left-1/2 -translate-x-1/2 top-0 uml-box w-44 text-center">
+              <span class="text-purple-300 font-bold block">Cliente</span>
+            </div>
+
+            <div
+              class="absolute left-1/2 -translate-x-1/2 top-16 uml-box w-52 text-center border-purple-400 bg-purple-950/70">
+              <span class="text-white font-bold block text-sm">Pedido</span>
+              <span class="text-[9px] text-purple-200">Registrar y coordinar proceso</span>
+            </div>
+
+            <div class="absolute left-[2%] top-36 uml-box w-40 text-center">
+              <span class="text-amber-300 font-bold block">Precio</span>
+              <span class="text-[9px] text-zinc-400">Cálculo de importe</span>
+            </div>
+
+            <div class="absolute left-1/2 -translate-x-1/2 top-36 uml-box w-36 text-center">
+              <span class="text-amber-300 font-bold block">Pago</span>
+              <span class="text-[9px] text-zinc-400">Procesar pago</span>
+            </div>
+
+            <div class="absolute right-[2%] top-36 uml-box w-40 text-center">
+              <span class="text-amber-300 font-bold block">Envío</span>
+              <span class="text-[9px] text-zinc-400">Gestionar despacho</span>
+            </div>
+
+            <div class="absolute left-1/2 -translate-x-1/2 bottom-0 uml-box w-48 text-center border-emerald-500">
+              <span class="text-emerald-300 font-bold block">Stock</span>
+              <span class="text-[9px] text-zinc-400">Actualizar inventario</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 04: ADAPTER - PORTADA / PROBLEMA -->
+      <!-- ========================================== -->
+      <div id="slide-4" class="slide-content slide-enter space-y-6 max-w-5xl mx-auto w-full hidden text-center">
+        <span class="badge-pill bg-purple-100 text-purple-800">Patrón Estructural 01</span>
+
+        <h1 class="text-6xl md:text-8xl font-black font-display text-brand-adapter tracking-tight uppercase">
+          INTEGRAR
+        </h1>
+
+        <div
+          class="inline-block bg-slate-900 text-purple-300 font-mono text-sm px-6 py-2 rounded-full border border-purple-500/50 shadow-lg">
+          → ADAPTER (ADAPTADOR)
+        </div>
+
+        <div
+          class="bento-card p-6 max-w-2xl mx-auto text-left space-y-3 bg-gradient-to-b from-purple-50/40 to-white border-purple-200">
+          <strong class="text-xs font-mono font-bold text-purple-700 block uppercase">PROBLEMA DE DISEÑO</strong>
+          <p class="text-sm font-semibold text-zinc-800 leading-relaxed">
+            Queremos procesar pagos con múltiples proveedores externos, pero cada uno ofrece una interfaz completamente
+            diferente e incompatible.
+          </p>
+
+          <!-- Evidencia visual del Mismatch de código -->
+          <div
+            class="bg-slate-900 p-4 rounded-xl font-mono text-xs text-zinc-300 space-y-2 border border-slate-700 mt-2">
+            <span class="text-[10px] text-purple-400 font-bold block border-b border-slate-800 pb-1">INCOMPATIBILIDAD DE
+              MÉTODOS EXTERNOS:</span>
+            <p>Proveedor A: <code class="text-emerald-400">procesarPago(monto)</code></p>
+            <p>Proveedor B: <code class="text-amber-400">realizarTransaccion(importe)</code></p>
+            <p>Proveedor C: <code class="text-pink-400">pagar(total)</code></p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 05: ADAPTER - TEORÍA & UML GENERAL -->
+      <!-- ========================================== -->
+      <div id="slide-5" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+        <div class="flex justify-between items-center border-b border-purple-200 pb-2">
+          <div>
+            <span class="badge-pill bg-purple-100 text-purple-800">Estructural GoF</span>
+            <h2 class="text-2xl font-bold font-display text-zinc-900">Adapter: Teoría & Estructura General</h2>
+          </div>
+          <span class="font-mono text-xs font-bold text-purple-600">ADAPTER (1/2)</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+          <div class="md:col-span-5 space-y-3">
+            <div class="bento-card p-4 border-l-4 border-l-purple-600">
+              <strong class="text-[11px] font-mono font-bold text-purple-700 block uppercase">PROBLEMA</strong>
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed font-medium">
+                ¿Cómo resolver interfaces incompatibles, o proporcionar una interfaz estable para componentes parecidos
+                con diferentes interfaces?
+              </p>
+            </div>
+
+            <div class="bento-card p-4 border-l-4 border-l-pink-500">
+              <strong class="text-[11px] font-mono font-bold text-pink-700 block uppercase">SOLUCIÓN</strong>
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed">
+                Convertir la interfaz original de un componente en otra interfaz mediante un objeto adaptador
+                intermedio.
+              </p>
+            </div>
+
+            <div class="bento-card p-4 border-l-4 border-l-amber-500">
+              <strong class="text-[11px] font-mono font-bold text-amber-700 block uppercase">PARTICIPANTES</strong>
+              <div class="text-xs text-zinc-700 font-mono mt-1 space-y-0.5">
+                <p>• <strong>Client:</strong> Solicita la operación</p>
+                <p>• <strong>Target:</strong> Interfaz esperada</p>
+                <p>• <strong>Adapter:</strong> Traduce las llamadas</p>
+                <p>• <strong>Adaptee:</strong> Objeto existente incompatible</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Diagrama UML General GoF con conectores ortogonales -->
+          <div class="md:col-span-7 dark-card p-5 flex flex-col justify-between relative">
+            <span class="text-xs font-mono text-purple-400 font-bold">DIAGRAMA UML ESTRUCTURAL GENERAL (GOF)</span>
+
+            <div class="relative w-full h-[240px] my-auto">
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+                <defs>
+                  <marker id="triangle-hollow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8"
+                    orient="auto-start-reverse">
+                    <polygon points="0 0, 10 5, 0 10" fill="#0F172A" stroke="#8B5CF6" stroke-width="1.5" />
+                  </marker>
+                  <marker id="white-hollow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8"
+                    orient="auto-start-reverse">
+                    <polygon points="0 0, 10 5, 0 10" fill="#FFFFFF" stroke="#FFFFFFF" />
+                  </marker>
+                </defs>
+                <!-- Client → Target -->
+                <line x1="22%" y1="35" x2="35%" y2="35" stroke="#FFFFFF" stroke-width="1.5"
+                  marker-end="url(#white-hollow)" />
+
+                <!-- Adapter → Target -->
+                <line x1="50%" y1="125" x2="50%" y2="80" stroke="#8B5CF6" stroke-width="1.5" stroke-dasharray="4 3"
+                  marker-end="url(#triangle-hollow)" />
+
+                <!-- Adapter → Adaptee -->
+                <line x1="67%" y1="160" x2="78%" y2="160" stroke="#FFFFFF" stroke-width="1.5"
+                  marker-end="url(#white-hollow)" />
+              </svg>
+
+              <div class="absolute left-2 top-4 uml-box w-32 text-center">
+                <span class="text-purple-300 font-bold block">Client</span>
+              </div>
+
+              <div class="absolute left-1/2 -translate-x-1/2 top-2 uml-box w-44 text-center border-purple-500">
+                <span class="text-purple-300 font-bold block">«interface»<br>Target</span>
+                <span class="text-[9px] text-zinc-300 block mt-1">+ request()</span>
+              </div>
+
+              <div class="absolute right-2 top-32 uml-box w-32 text-center border-amber-500">
+                <span class="text-amber-300 font-bold block">Adaptee</span>
+                <span class="text-[9px] text-zinc-300 block mt-1">+ specificRequest()</span>
+              </div>
+
+              <div
+                class="absolute left-1/2 -translate-x-1/2 top-32 uml-box w-52 text-center border-purple-400 bg-purple-950/80">
+                <span class="text-white font-bold block">Adapter</span>
+                <span class="text-[8px] text-purple-200 block mt-1">+ request() { adaptee.specificRequest(); }</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 06: ADAPTER - APLICACIÓN AL SISTEMA -->
+      <!-- ========================================== -->
+      <div id="slide-6" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+        <div class="flex justify-between items-center border-b border-purple-200 pb-2">
+          <div>
+            <span class="badge-pill bg-purple-100 text-purple-800">Aplicación Práctica</span>
+            <h2 class="text-2xl font-bold font-display text-zinc-900">Adapter: Integración con Proveedores de Pago</h2>
+          </div>
+          <!-- Llamado visual para objeto físico -->
+          <div
+            class="bg-amber-100 border border-amber-300 text-amber-900 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm">
+            <span>🔌</span>
+            <span>OBJETO FÍSICO: Mostrar Adaptador de Enchufe</span>
+          </div>
+        </div>
+
+        <div class="dark-card p-5 relative">
+          <span class="text-xs font-mono text-emerald-400 font-bold block mb-3">DIAGRAMA APLICADO AL SISTEMA DE
+            PEDIDOS</span>
+
+          <div class="relative w-full h-[200px]">
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+              <defs>
+                <marker id="adapter-arrow-white" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                  orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+                </marker>
+
+                <marker id="adapter-triangle-hollow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8"
+                  markerHeight="8" orient="auto">
+                  <polygon points="0,0 10,5 0,10" fill="#0F172A" stroke="#10B981" stroke-width="1.5" />
+                </marker>
+              </defs>
+              <!-- Sistema de Pedidos → IPago -->
+              <line x1="15%" y1="35" x2="41%" y2="35" stroke="#FFFFFF" stroke-width="1.5"
+                marker-end="url(#adapter-arrow-white)" />
+
+              <!-- IPago → MercadoPagoAdapter -->
+              <line x1="50%" y1="60" x2="50%" y2="78" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="50%" y1="78" x2="32%" y2="78" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="32%" y1="78" x2="32%" y2="98" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#adapter-triangle-hollow)" />
+
+              <!-- IPago → PayPalAdapter -->
+              <line x1="50%" y1="78" x2="68%" y2="78" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="68%" y1="78" x2="68%" y2="98" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#adapter-triangle-hollow)" />
+
+              <!-- MercadoPagoAdapter → MercadoPagoSDK -->
+              <line x1="20%" y1="125" x2="24%" y2="125" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#adapter-arrow-white)" />
+
+              <!-- PayPalAdapter → PayPalSDK -->
+              <line x1="80%" y1="125" x2="76%" y2="125" stroke="#FFFFFF" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#adapter-arrow-white)" />
+            </svg>
+
+            <div class="absolute left-4 top-2 uml-box w-36 text-center">
+              <span class="text-purple-300 font-bold block">Sistema de Pedidos</span>
+              <span class="text-[8px] text-zinc-400">(Client)</span>
+            </div>
+
+            <div class="absolute left-1/2 -translate-x-1/2 top-2 uml-box w-48 text-center border-emerald-500">
+              <span class="text-emerald-300 font-bold block">«interface» IPago</span>
+              <span class="text-[9px] text-zinc-300">+ procesarPago(monto)</span>
+            </div>
+
+            <div class="absolute left-[24%] top-24 uml-box w-48 text-center border-purple-400 bg-purple-950/60">
+              <span class="text-white font-bold block">MercadoPagoAdapter</span>
+              <span class="text-[8px] text-purple-200">+ procesarPago(monto)</span>
+            </div>
+
+            <div class="absolute right-[24%] top-24 uml-box w-48 text-center border-purple-400 bg-purple-950/60">
+              <span class="text-white font-bold block">PayPalAdapter</span>
+              <span class="text-[8px] text-purple-200">+ procesarPago(monto)</span>
+            </div>
+
+            <div class="absolute left-[2%] top-24 uml-box w-48 text-center border-amber-500 bg-slate-800">
+              <span class="text-amber-300 font-bold block">MercadoPagoSDK</span>
+              <span class="text-[8px] text-zinc-400">+ realizarTransaccion(importe)</span>
+            </div>
+
+            <div class="absolute right-[2%] top-24 uml-box w-48 text-center border-amber-500 bg-slate-800">
+              <span class="text-amber-300 font-bold block">PayPalSDK</span>
+              <span class="text-[8px] text-zinc-400">+ makePayment(amount)</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Consecuencias + Pregunta conectora -->
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div class="md:col-span-8 grid grid-cols-2 gap-3 text-xs">
+            <div class="bento-card p-3 border-l-4 border-l-emerald-500 bg-emerald-50/30">
+              <strong class="text-emerald-900 font-mono block text-[10px] uppercase">PROPÓSITO / CONSECUENCIAS</strong>
+              <p class="text-zinc-700 mt-1">El sistema trabaja con una interfaz estable. Se ocultan diferencias externas
+                y se incorporan proveedores sin modificar el cliente.</p>
+            </div>
+            <div class="bento-card p-3 border-l-4 border-l-rose-500 bg-rose-50/30">
+              <strong class="text-rose-900 font-mono block text-[10px] uppercase">COSTO DE DISEÑO</strong>
+              <p class="text-zinc-700 mt-1">Suma una capa de indirección y clases adicionales en el sistema.</p>
+            </div>
+          </div>
+
+          <!-- PREGUNTA CONECTORA MANDATORIA -->
+          <div
+            class="md:col-span-4 bento-card p-3 bg-purple-900 text-white flex flex-col justify-between text-xs border-purple-700">
+            <div>
+              <span class="text-amber-300 font-mono font-bold block text-[10px]">CONEXIÓN DE DISEÑO</span>
+              <p class="text-purple-100 font-medium mt-1">Tenemos los Adapters... ¿pero quién es responsable de
+                instanciarlos?</p>
+            </div>
+            <div class="font-bold font-mono text-purple-300 text-right mt-2">→ FACTORY</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 07: FACTORY - PORTADA / PROBLEMA -->
+      <!-- ========================================== -->
+      <div id="slide-7" class="slide-content slide-enter space-y-6 max-w-5xl mx-auto w-full hidden text-center">
+        <span class="badge-pill bg-blue-100 text-blue-800">Patrón Creacional 02</span>
+
+        <h1 class="text-6xl md:text-8xl font-black font-display text-brand-factory tracking-tight uppercase">
+          CREAR
+        </h1>
+
+        <div
+          class="inline-block bg-slate-900 text-blue-300 font-mono text-sm px-6 py-2 rounded-full border border-blue-500/50 shadow-lg">
+          → FACTORY (FACTORÍA)
+        </div>
+
+        <div
+          class="bento-card p-6 max-w-2xl mx-auto text-left space-y-3 bg-gradient-to-b from-blue-50/40 to-white border-blue-200">
+          <strong class="text-xs font-mono font-bold text-blue-700 block uppercase">PROBLEMA DE DISEÑO</strong>
+          <p class="text-sm font-semibold text-zinc-800 leading-relaxed">
+            Si cada parte del sistema crea directamente los objetos concretos, la lógica de instanciación termina
+            dispersa por todo el código.
+          </p>
+
+          <!-- Evidencia del problema: Creación dispersa -->
+          <div
+            class="bg-slate-900 p-4 rounded-xl font-mono text-xs text-zinc-300 space-y-1.5 border border-slate-700 mt-2">
+            <span class="text-[10px] text-blue-400 font-bold block border-b border-slate-800 pb-1">CREACIÓN REPARTIDA
+              POR EL SISTEMA:</span>
+            <p><code class="text-rose-400">new PagoProveedorA()</code></p>
+            <p><code class="text-rose-400">new PagoProveedorB()</code></p>
+            <p><code class="text-rose-400">new PagoProveedorC()</code></p>
+            <p class="text-[10px] text-zinc-400 pt-1">La creación empieza a estar repartida por el sistema.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 08: FACTORY - TEORÍA & UML GENERAL -->
+      <!-- ========================================== -->
+      <div id="slide-8" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+        <div class="flex justify-between items-center border-b border-blue-200 pb-2">
+          <div>
+            <span class="badge-pill bg-blue-100 text-blue-800">Creacional GoF</span>
+            <h2 class="text-2xl font-bold font-display text-zinc-900">Factory: Teoría & Estructura General</h2>
+          </div>
+          <span class="font-mono text-xs font-bold text-blue-600">FACTORY (1/2)</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+          <div class="md:col-span-5 space-y-3">
+            <div class="bento-card p-4 border-l-4 border-l-blue-600">
+              <strong class="text-[11px] font-mono font-bold text-blue-700 block uppercase">PROBLEMA</strong>
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed font-medium">
+                ¿Quién debe ser responsable de la creación de los objetos cuando existen consideraciones especiales o
+                una lógica de creación que conviene separar?
+              </p>
+            </div>
+
+            <div class="bento-card p-4 border-l-4 border-l-indigo-500">
+              <strong class="text-[11px] font-mono font-bold text-indigo-700 block uppercase">SOLUCIÓN</strong>
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed">
+                Crear un objeto de Fabricación Pura (Factoría) que concentre la responsabilidad de instanciación.
+              </p>
+            </div>
+
+            <div class="bento-card p-4 border-l-4 border-l-sky-500">
+              <strong class="text-[11px] font-mono font-bold text-sky-700 block uppercase">PARTICIPANTES</strong>
+              <div class="text-xs text-zinc-700 font-mono mt-1 space-y-0.5">
+                <p>• <strong>Client:</strong> Solicita el producto</p>
+                <p>• <strong>Factory:</strong> Encargada de fabricar</p>
+                <p>• <strong>Product:</strong> Interfaz del objeto</p>
+                <p>• <strong>ConcreteProduct:</strong> Implementaciones</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="md:col-span-7 dark-card p-5 flex flex-col justify-between relative">
+            <span class="text-xs font-mono text-blue-400 font-bold">DIAGRAMA UML ESTRUCTURAL GENERAL (GOF)</span>
+
+            <div class="relative w-full h-[230px] my-auto">
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+                <defs>
+                  <marker id="factory-triangle-hollow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8"
+                    markerHeight="8" orient="auto">
+                    <polygon points="0,0 10,5 0,10" fill="#0F172A" stroke="#3B82F6" stroke-width="1.5" />
+                  </marker>
+
+                  <marker id="factory-arrow-white" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6"
+                    markerHeight="6" orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+                  </marker>
+                </defs>
+                <!-- Client → Factory -->
+                <line x1="20%" y1="40" x2="38%" y2="40" stroke="#FFFFFF" stroke-width="1.5"
+                  marker-end="url(#factory-arrow-white)" />
+
+                <!-- Factory → Product -->
+                <line x1="67%" y1="40" x2="75%" y2="40" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3"
+                  marker-end="url(#factory-arrow-white)" />
+
+                <!-- ConcreteProductA → Product -->
+                <line x1="20%" y1="190" x2="20%" y2="135" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+
+                <line x1="20%" y1="135" x2="72%" y2="135" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+
+                <line x1="80%" y1="135" x2="80%" y2="83" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3"
+                  marker-end="url(#factory-triangle-hollow)" />
+
+                <!-- ConcreteProductB → Product -->
+                <line x1="50%" y1="190" x2="50%" y2="135" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+
+                <!-- ConcreteProductC → Product -->
+                <line x1="82%" y1="190" x2="82%" y2="135" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+
+                <line x1="82%" y1="135" x2="72%" y2="135" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+              </svg>
+
+              <div class="absolute left-2 top-4 uml-box w-28 text-center">
+                <span class="text-blue-300 font-bold block">Client</span>
+              </div>
+
+              <div class="absolute left-[38%] top-2 uml-box w-44 border-blue-500">
+                <span class="text-blue-300 font-bold block">Factory</span>
+                <span class="text-[8px] text-zinc-300 block mt-1">+ createProduct(): Product</span>
+              </div>
+
+              <div class="absolute right-2 top-2 uml-box w-36 border-indigo-500 text-center">
+                <span class="text-indigo-300 font-bold block">«interface»<br>Product</span>
+                <span class="text-[8px] text-zinc-300 block mt-1">+ doStuff()</span>
+              </div>
+
+              <div class="absolute bottom-1 left-0 right-0 flex justify-around px-2">
+                <div class="uml-box w-28 text-center"><span class="text-[8px]">ConcreteProductA</span></div>
+                <div class="uml-box w-28 text-center"><span class="text-[8px]">ConcreteProductB</span></div>
+                <div class="uml-box w-28 text-center"><span class="text-[8px]">ConcreteProductC</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 09: FACTORY - APLICACIÓN AL SISTEMA -->
+      <!-- ========================================== -->
+      <div id="slide-9" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+        <div class="flex justify-between items-center border-b border-blue-200 pb-2">
+          <div>
+            <span class="badge-pill bg-blue-100 text-blue-800">Aplicación Práctica</span>
+            <h2 class="text-2xl font-bold font-display text-zinc-900">Factory: Encapsulamiento de Creación de Servicios
+            </h2>
+          </div>
+          <span class="font-mono text-xs font-bold text-blue-600">FACTORY (2/2)</span>
+        </div>
+
+        <div class="dark-card p-5 relative">
+          <span class="text-xs font-mono text-blue-400 font-bold block mb-3">DIAGRAMA APLICADO AL SISTEMA DE
+            PEDIDOS</span>
+
+          <div class="relative w-full h-[200px]">
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+              <marker id="factory1-triangle-hollow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8"
+                markerHeight="8" orient="auto">
+                <polygon points="0,0 10,5 0,10" fill="#0F172A" stroke="#3B82F6" stroke-width="1.5" />
+              </marker>
+
+              <marker id="factory1-arrow-white" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                orient="auto">
+                <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+              </marker>
+              <!-- Cliente → Factoría -->
+              <line x1="15%" y1="40" x2="35%" y2="40" stroke="#FFFFFF" stroke-width="1.5"
+                marker-end="url(#factory1-arrow-white)" />
+
+              <!-- Factoría → IPago -->
+              <line x1="56%" y1="42" x2="81%" y2="42" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#factory1-arrow-white)" />
+
+              <!-- MercadoPagoAdapter → IPago -->
+              <line x1="79%" y1="155" x2="79%" y2="105" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="79%" y1="105" x2="82%" y2="105" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="87%" y1="105" x2="87%" y2="65" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#factory1-triangle-hollow)" />
+
+              <!-- PayPalAdapter → IPago -->
+              <line x1="91%" y1="155" x2="91%" y2="105" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="91%" y1="105" x2="82%" y2="105" stroke="#3B82F6" stroke-width="1.5" stroke-dasharray="3 3" />
+            </svg>
+
+            <div class="absolute left-4 top-4 uml-box w-36 text-center">
+              <span class="text-purple-300 font-bold block">Sistema Pedidos</span>
+              <span class="text-[8px] text-zinc-400">(Client)</span>
+            </div>
+
+            <div class="absolute left-[35%] top-4 uml-box w-56 border-blue-500 bg-slate-800">
+              <span class="text-blue-300 font-bold block text-center">FactoriaDeServicios</span>
+              <div class="text-[8px] text-zinc-300 mt-1 space-y-0.5 font-mono">
+                <p>+ crearPago(tipo): IPago</p>
+                <p>+ crearServicioEnvio(tipo): IEnvio</p>
+              </div>
+            </div>
+
+            <div class="absolute right-4 top-4 uml-box w-48 text-center border-emerald-500">
+              <span class="text-emerald-300 font-bold block">«interface» IPago</span>
+              <span class="text-[8px] text-zinc-300 block mt-1">+ procesarPago(monto)</span>
+            </div>
+
+            <div class="absolute right-4 bottom-2 flex gap-3">
+              <div class="uml-box w-36 text-center border-slate-700">
+                <span class="text-purple-300 font-bold block text-[9px]">MercadoPagoAdapter</span>
+              </div>
+              <div class="uml-box w-36 text-center border-slate-700">
+                <span class="text-purple-300 font-bold block text-[9px]">PayPalAdapter</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+          <div class="md:col-span-8 grid grid-cols-2 gap-3 text-xs">
+            <div class="bento-card p-3 border-l-4 border-l-emerald-500 bg-emerald-50/30">
+              <strong class="text-emerald-900 font-mono block text-[10px] uppercase">PROPÓSITO / CONSECUENCIAS</strong>
+              <p class="text-zinc-700 mt-1">Aísla la lógica de creación. El cliente no necesita conocer las clases
+                concretas instanciadas.</p>
+            </div>
+            <div class="bento-card p-3 border-l-4 border-l-rose-500 bg-rose-50/30">
+              <strong class="text-rose-900 font-mono block text-[10px] uppercase">COSTO DE DISEÑO</strong>
+              <p class="text-zinc-700 mt-1">Suma una clase adicional y una indirección más al flujo.</p>
+            </div>
+          </div>
+
+          <div
+            class="md:col-span-4 bento-card p-3 bg-blue-950 text-white flex flex-col justify-between text-xs border-blue-800">
+            <div>
+              <span class="text-amber-300 font-mono font-bold block text-[10px]">CONEXIÓN DE DISEÑO</span>
+              <p class="text-blue-100 font-medium mt-1">La Factoría es utilizada desde múltiples módulos... ¿necesitamos
+                varias instancias de ella?</p>
+            </div>
+            <div class="font-bold font-mono text-blue-300 text-right mt-2">→ SINGLETON</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 10: SINGLETON - PORTADA / PROBLEMA -->
+      <!-- ========================================== -->
+      <div id="slide-10" class="slide-content slide-enter space-y-6 max-w-5xl mx-auto w-full hidden text-center">
+        <span class="badge-pill bg-orange-100 text-orange-800">Patrón Creacional 03</span>
+
+        <h1 class="text-6xl md:text-8xl font-black font-display text-brand-singleton tracking-tight uppercase">
+          CONTROLAR
+        </h1>
+
+        <div
+          class="inline-block bg-slate-900 text-orange-300 font-mono text-sm px-6 py-2 rounded-full border border-orange-500/50 shadow-lg">
+          → SINGLETON (INSTANCIA ÚNICA)
+        </div>
+
+        <div
+          class="bento-card p-6 max-w-2xl mx-auto text-left space-y-3 bg-gradient-to-b from-orange-50/40 to-white border-orange-200">
+          <strong class="text-xs font-mono font-bold text-orange-700 block uppercase">PROBLEMA DE DISEÑO</strong>
+          <p class="text-sm font-semibold text-zinc-800 leading-relaxed">
+            Garantizar que exista una única instancia compartida de la FactoríaDeServicios en todo el ciclo de vida del
+            sistema.
+          </p>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 11: SINGLETON - TEORÍA & UML GENERAL -->
+      <!-- ========================================== -->
+      <div id="slide-11" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+        <div class="flex justify-between items-center border-b border-orange-200 pb-2">
+          <div>
+            <span class="badge-pill bg-orange-100 text-orange-800">Creacional GoF</span>
+            <h2 class="text-2xl font-bold font-display text-zinc-900">Singleton: Teoría & Estructura General</h2>
+          </div>
+          <span class="font-mono text-xs font-bold text-orange-600">SINGLETON (1/2)</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+          <div class="md:col-span-5 space-y-3">
+            <div class="bento-card p-4 border-l-4 border-l-orange-600">
+              <strong class="text-[11px] font-mono font-bold text-orange-700 block uppercase">PROBLEMA</strong>
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed font-medium">
+                ¿Cómo garantizar que exista una única instancia de una clase y proporcionar un punto de acceso a ella?
+              </p>
+            </div>
+
+            <div class="bento-card p-4 border-l-4 border-l-amber-500">
+              <strong class="text-[11px] font-mono font-bold text-amber-700 block uppercase">SOLUCIÓN</strong>
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed">
+                La propia clase controla su única instancia y proporciona un punto de acceso global mediante un método
+                estático.
+              </p>
+            </div>
+
+            <div class="bento-card p-4 border-l-4 border-l-yellow-600">
+              <strong class="text-[11px] font-mono font-bold text-yellow-800 block uppercase">PARTICIPANTES</strong>
+              <div class="text-xs text-zinc-700 font-mono mt-1 space-y-0.5">
+                <p>• <strong>Singleton:</strong> Controla su instancia</p>
+                <p>• <strong>Client:</strong> Solicita <code class="text-purple-700">getInstance()</code></p>
+              </div>
+            </div>
+          </div>
+
+          <div class="md:col-span-7 dark-card p-5 flex flex-col justify-between relative">
+            <span class="text-xs font-mono text-orange-400 font-bold">DIAGRAMA UML ESTRUCTURAL GENERAL (GOF)</span>
+
+            <div class="relative w-full h-[220px] my-auto">
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+                <marker id="singleton-arrow-white" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6"
+                  markerHeight="6" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+                </marker>
+                <!-- Client → Singleton -->
+                <line x1="19%" y1="74" x2="42%" y2="74" stroke="#FFFFFF" stroke-width="1.5"
+                  marker-end="url(#singleton-arrow-white)" />
+
+                <!-- Singleton → Singleton (reflexiva) -->
+                <line x1="81%" y1="70" x2="86%" y2="70" stroke="#EA580C" stroke-width="1.5" />
+
+                <line x1="86%" y1="70" x2="86%" y2="40" stroke="#EA580C" stroke-width="1.5" />
+
+                <line x1="86%" y1="40" x2="81%" y2="40" stroke="#EA580C" stroke-width="1.5"
+                  marker-end="url(#singleton-arrow-white)" />
+              </svg>
+
+              <div class="absolute left-12 top-14 uml-box w-27 text-center">
+                <span class="text-orange-300 font-bold block">Client</span>
+              </div>
+
+              <div class="absolute left-[42%] top-4 uml-box w-60 border-orange-500">
+                <span class="text-orange-300 font-bold block text-center">Singleton</span>
+                <div class="text-[8px] text-zinc-300 font-mono mt-2 space-y-1 border-t border-slate-700 pt-1">
+                  <p class="text-amber-300">- instance: Singleton</p>
+                  <p>- Singleton() <span class="text-zinc-500">[privado]</span></p>
+                  <p class="text-emerald-300">+ getInstance(): Singleton</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 12: SINGLETON - APLICACIÓN AL SISTEMA -->
+      <!-- ========================================== -->
+      <div id="slide-12" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+        <div class="flex justify-between items-center border-b border-orange-200 pb-2">
+          <div>
+            <span class="badge-pill bg-orange-100 text-orange-800">Aplicación Práctica</span>
+            <h2 class="text-2xl font-bold font-display text-zinc-900">Singleton: Instancia Única de la Factoría</h2>
+          </div>
+          <span class="font-mono text-xs font-bold text-orange-600">SINGLETON (2/2)</span>
+        </div>
+
+        <div class="dark-card p-5 relative">
+          <span class="text-xs font-mono text-orange-400 font-bold block mb-3">
+            FACTORÍA IMPLEMENTADA COMO SINGLETON
+          </span>
+
+          <div class="relative w-full h-[220px] my-auto">
+
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+
+              <defs>
+                <marker id="factory-singleton-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6"
+                  markerHeight="6" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+                </marker>
+              </defs>
+
+              <!-- Cliente → Factoría -->
+              <line x1="18%" y1="74" x2="46%" y2="74" stroke="#FFFFFF" stroke-width="1.5"
+                marker-end="url(#factory-singleton-arrow)" />
+
+              <!-- Factoría → sí misma (relación reflexiva) -->
+              <line x1="72%" y1="70" x2="77%" y2="70" stroke="#EA580C" stroke-width="1.5" />
+
+              <line x1="77%" y1="70" x2="77%" y2="40" stroke="#EA580C" stroke-width="1.5" />
+
+              <line x1="77%" y1="40" x2="72%" y2="40" stroke="#EA580C" stroke-width="1.5"
+                marker-end="url(#factory-singleton-arrow)" />
+
+            </svg>
+
+            <!-- Cliente -->
+            <div class="absolute left-20 top-14 uml-box w-28 text-center">
+              <span class="text-orange-300 font-bold block">
+                Cliente
+              </span>
+              <span class="text-[8px] text-zinc-400 mt-1 block">
+                getInstancia()
+              </span>
+            </div>
+
+            <!-- Factoría de Servicios -->
+            <div class="absolute left-[46%] top-4 uml-box w-72 border-orange-500 bg-slate-900 p-3">
+
+              <span class="text-orange-300 font-bold block text-center border-b border-slate-700 pb-1">
+                FactoriaDeServicios
+              </span>
+
+              <div class="text-[9px] text-zinc-300 space-y-1 mt-2 font-mono">
+
+                <p class="text-amber-300">
+                  - instancia: FactoriaDeServicios
+                </p>
+
+                <p>
+                  - FactoriaDeServicios()
+                  <span class="text-zinc-500">[Privado]</span>
+                </p>
+
+                <p class="text-emerald-300">
+                  + getInstancia(): FactoriaDeServicios
+                </p>
+
+                <p>
+                  + crearPago(tipo): IPago
+                </p>
+
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+          <div class="md:col-span-8 grid grid-cols-2 gap-3 text-xs">
+
+            <div class="bento-card p-3 border-l-4 border-l-emerald-500 bg-emerald-50/30">
+              <strong class="text-emerald-900 font-mono block text-[10px] uppercase">
+                PROPÓSITO / CONSECUENCIAS
+              </strong>
+              <p class="text-zinc-700 mt-1">
+                Garantiza una única instancia compartida y control estricto de acceso global.
+              </p>
+            </div>
+
+            <div class="bento-card p-3 border-l-4 border-l-rose-500 bg-rose-50/30">
+              <strong class="text-rose-900 font-mono block text-[10px] uppercase">
+                COSTO DE DISEÑO
+              </strong>
+              <p class="text-zinc-700 mt-1">
+                Introduce una dependencia global que puede dificultar pruebas unitarias independientes.
+              </p>
+            </div>
+
+          </div>
+
+          <div
+            class="md:col-span-4 bento-card p-3 bg-orange-950 text-white flex flex-col justify-between text-xs border-orange-800">
+
+            <div>
+              <span class="text-amber-300 font-mono font-bold block text-[10px]">
+                CONEXIÓN DE DISEÑO
+              </span>
+
+              <p class="text-orange-100 font-medium mt-1">
+                Ya controlamos la creación de la Factoría, pero el cliente todavía necesita conocer y coordinar varios
+                servicios del sistema.
+              </p>
+            </div>
+
+            <div class="font-bold font-mono text-orange-300 text-right mt-2">
+              → FACADE
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 13: FACADE - PORTADA / PROBLEMA -->
+      <!-- ========================================== -->
+      <div id="slide-13" class="slide-content slide-enter space-y-6 max-w-5xl mx-auto w-full hidden text-center">
+        <span class="badge-pill bg-cyan-100 text-cyan-800">Patrón Estructural 04</span>
+
+        <h1 class="text-6xl md:text-8xl font-black font-display text-brand-facade tracking-tight uppercase">
+          SIMPLIFICAR
+        </h1>
+
+        <div
+          class="inline-block bg-slate-900 text-cyan-300 font-mono text-sm px-6 py-2 rounded-full border border-cyan-500/50 shadow-lg">
+          → FACADE (FACHADA)
+        </div>
+
+        <div
+          class="bento-card p-6 max-w-2xl mx-auto text-left space-y-3 bg-gradient-to-b from-cyan-50/40 to-white border-cyan-200">
+          <strong class="text-xs font-mono font-bold text-cyan-700 block uppercase">PROBLEMA DE DISEÑO</strong>
+          <p class="text-sm font-semibold text-zinc-800 leading-relaxed">
+            Ocultar la complejidad de coordinar Inventario, Pago, Envío y Notificaciones detrás de un único punto de
+            entrada simplificado.
+          </p>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 14: FACADE - TEORÍA & UML GENERAL -->
+      <!-- ========================================== -->
+      <div id="slide-14" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+        <div class="flex justify-between items-center border-b border-cyan-200 pb-2">
+          <div>
+            <span class="badge-pill bg-cyan-100 text-cyan-800">Estructural GoF</span>
+            <h2 class="text-2xl font-bold font-display text-zinc-900">Facade: Teoría & Estructura General</h2>
+          </div>
+          <span class="font-mono text-xs font-bold text-cyan-600">FACADE (1/2)</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+          <div class="md:col-span-5 space-y-3">
+            <div class="bento-card p-4 border-l-4 border-l-cyan-600">
+              <strong class="text-[11px] font-mono font-bold text-cyan-700 block uppercase">PROBLEMA</strong>
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed font-medium">
+                ¿Cómo proporcionar una interfaz común y unificada para un conjunto de implementaciones o interfaces
+                dispares, como puede ocurrir dentro de un subsistema?
+              </p>
+            </div>
+
+            <div class="bento-card p-4 border-l-4 border-l-teal-500">
+              <strong class="text-[11px] font-mono font-bold text-teal-700 block uppercase">SOLUCIÓN</strong>
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed">
+                Una Fachada proporciona un único punto de acceso simplificado al subsistema coordinando las operaciones
+                internas.
+              </p>
+            </div>
+
+            <div class="bento-card p-4 border-l-4 border-l-sky-500">
+              <strong class="text-[11px] font-mono font-bold text-sky-700 block uppercase">PARTICIPANTES</strong>
+              <div class="text-xs text-zinc-700 font-mono mt-1 space-y-0.5">
+                <p>• <strong>Client:</strong> Llama a la Fachada</p>
+                <p>• <strong>Facade:</strong> Coordina el subsistema</p>
+                <p>• <strong>Subsystem classes:</strong> Componentes ocultos</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="md:col-span-7 dark-card p-5 flex flex-col justify-between relative">
+            <span class="text-xs font-mono text-cyan-400 font-bold">DIAGRAMA UML ESTRUCTURAL GENERAL (GOF)</span>
+
+            <div class="relative w-full h-[220px] my-auto">
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+                <defs>
+                  <!-- Flecha blanca -->
+                  <marker id="facade-arrow-white" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                    orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+                  </marker>
+
+                  <!-- Flecha cyan -->
+                  <marker id="facade-arrow-cyan" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                    orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 Z" fill="#0891B2" />
+                  </marker>
+                </defs>
+
+                <!-- Client → Facade -->
+                <line x1="20%" y1="33" x2="34%" y2="33" stroke="#FFFFFF" stroke-width="1.5"
+                  marker-end="url(#facade-arrow-white)" />
+
+                <!-- Facade → Subsystem A -->
+                <line x1="50%" y1="60" x2="50%" y2="100" stroke="#0891B2" stroke-width="1.5" />
+
+                <line x1="50%" y1="100" x2="14%" y2="100" stroke="#0891B2" stroke-width="1.5" />
+
+                <line x1="14%" y1="100" x2="14%" y2="170" stroke="#0891B2" stroke-width="1.5"
+                  marker-end="url(#facade-arrow-cyan)" />
+
+                <!-- Facade → Subsystem B -->
+                <line x1="50%" y1="100" x2="50%" y2="170" stroke="#0891B2" stroke-width="1.5"
+                  marker-end="url(#facade-arrow-cyan)" />
+
+                <!-- Facade → Subsystem C -->
+                <line x1="50%" y1="100" x2="84%" y2="100" stroke="#0891B2" stroke-width="1.5" />
+
+                <line x1="84%" y1="100" x2="84%" y2="170" stroke="#0891B2" stroke-width="1.5"
+                  marker-end="url(#facade-arrow-cyan)" />
+              </svg>
+
+              <div class="absolute left-2 top-4 uml-box w-28 text-center">
+                <span class="text-cyan-300 font-bold block">Client</span>
+              </div>
+
+              <div class="absolute left-1/2 -translate-x-1/2 top-2 uml-box w-48 text-center border-cyan-500">
+                <span class="text-cyan-300 font-bold block">Facade</span>
+                <span class="text-[8px] text-zinc-300 block mt-1">+ subsystemOperation()</span>
+              </div>
+
+              <div class="absolute bottom-2 left-0 right-0 flex justify-around px-2">
+                <div class="uml-box w-28 text-center"><span class="text-[8px]">Subsystem A</span></div>
+                <div class="uml-box w-28 text-center"><span class="text-[8px]">Subsystem B</span></div>
+                <div class="uml-box w-28 text-center"><span class="text-[8px]">Subsystem C</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 15: FACADE - APLICACIÓN AL SISTEMA -->
+      <!-- ========================================== -->
+      <div id="slide-15" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+
+        <div class="flex justify-between items-center border-b border-cyan-200 pb-2">
+          <div>
+            <span class="badge-pill bg-cyan-100 text-cyan-800">Aplicación Práctica</span>
+            <h2 class="text-2xl font-bold font-display text-zinc-900">
+              Facade: Proceso Unificado del Pedido
+            </h2>
+          </div>
+
+          <div
+            class="bg-amber-100 border border-amber-300 text-amber-900 px-3 py-1 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm">
+            <span>📺</span>
+            <span>OBJETO FÍSICO: Mostrar Control Remoto</span>
+          </div>
+        </div>
+
+
+        <div class="dark-card p-5 relative">
+
+          <span class="text-xs font-mono text-cyan-400 font-bold block mb-3">
+            DIAGRAMA APLICADO AL SISTEMA DE PEDIDOS
+          </span>
+
+
+          <!-- CONTENEDOR DEL DIAGRAMA -->
+          <div class="relative w-full h-[250px]">
+
+
+            <!-- ====================================== -->
+            <!-- RELACIONES UML -->
+            <!-- ====================================== -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+
+              <defs>
+
+                <!-- Flecha cyan -->
+                <marker id="facade-system-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                  orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 Z" fill="#06B6D4" />
+                </marker>
+
+              </defs>
+
+
+              <!-- PedidoFacade → ServicioInventario -->
+              <line x1="50%" y1="70" x2="12.5%" y2="155" stroke="#06B6D4" stroke-width="1.5" stroke-dasharray="4 3"
+                marker-end="url(#facade-system-arrow)" />
+
+
+              <!-- PedidoFacade → ServicioPago -->
+              <line x1="50%" y1="70" x2="37.5%" y2="155" stroke="#06B6D4" stroke-width="1.5" stroke-dasharray="4 3"
+                marker-end="url(#facade-system-arrow)" />
+
+
+              <!-- PedidoFacade → ServicioEnvio -->
+              <line x1="50%" y1="70" x2="62.5%" y2="155" stroke="#06B6D4" stroke-width="1.5" stroke-dasharray="4 3"
+                marker-end="url(#facade-system-arrow)" />
+
+
+              <!-- PedidoFacade → ServicioNotificaciones -->
+              <line x1="50%" y1="70" x2="87.5%" y2="155" stroke="#06B6D4" stroke-width="1.5" stroke-dasharray="4 3"
+                marker-end="url(#facade-system-arrow)" />
+
+            </svg>
+
+
+            <!-- ====================================== -->
+            <!-- PEDIDO FACADE -->
+            <!-- ====================================== -->
+            <div class="absolute left-1/2 -translate-x-1/2 top-2 uml-box border-cyan-500 bg-slate-800 p-3 text-center"
+              style="width: 42%; z-index: 2;">
+              <span class="text-cyan-300 text-sm font-bold block">
+                PedidoFacade
+              </span>
+
+              <span class="text-xs text-zinc-200 font-mono">
+                + procesarPedido(pedido): ResultadoPedido
+              </span>
+            </div>
+
+
+            <!-- ====================================== -->
+            <!-- CONTENEDOR DEL SUBSISTEMA -->
+            <!-- ====================================== -->
+            <div
+              class="absolute left-[1%] right-[1%] bottom-0 top-[125px] rounded-2xl border border-dashed border-cyan-700/60"
+              style="z-index: 0;">
+            </div>
+
+
+            <!-- ====================================== -->
+            <!-- SERVICIOS -->
+            <!-- ====================================== -->
+
+            <!-- Servicio Inventario -->
+            <div class="absolute left-[0%] bottom-10 uml-box border-slate-700 text-center"
+              style="width: 24%; z-index: 2;">
+              <span class="text-purple-300 block font-bold text-xs">
+                ServicioInventario
+              </span>
+
+              <span class="text-zinc-400 mt-1 block font-mono text-[9px]">
+                + verificarStock()
+              </span>
+            </div>
+
+
+            <!-- Servicio Pago -->
+            <div class="absolute left-[25.5%] bottom-10 uml-box border-slate-700 text-center"
+              style="width: 24%; z-index: 2;">
+              <span class="text-purple-300 block font-bold text-xs">
+                ServicioPago
+              </span>
+
+              <span class="text-zinc-400 mt-1 block font-mono text-[9px]">
+                + procesarPago()
+              </span>
+            </div>
+
+
+            <!-- Servicio Envío -->
+            <div class="absolute left-[51%] bottom-10 uml-box border-slate-700 text-center"
+              style="width: 24%; z-index: 2;">
+              <span class="text-purple-300 block font-bold text-xs">
+                ServicioEnvio
+              </span>
+
+              <span class="text-zinc-400 mt-1 block font-mono text-[9px]">
+                + generarEnvio()
+              </span>
+            </div>
+
+
+            <!-- Servicio Notificaciones -->
+            <div class="absolute right-[0%] bottom-10 uml-box border-slate-700 text-center"
+              style="width: 24%; z-index: 2;">
+              <span class="text-purple-300 block font-bold text-xs">
+                ServicioNotificaciones
+              </span>
+
+              <span class="text-zinc-400 mt-1 block font-mono text-[9px]">
+                + enviarConfirmacion()
+              </span>
+            </div>
+
+
+          </div>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- CONSECUENCIAS + CONEXIÓN -->
+        <!-- ========================================== -->
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+          <div class="md:col-span-8 grid grid-cols-2 gap-3 text-xs">
+
+            <div class="bento-card p-3 border-l-4 border-l-emerald-500 bg-emerald-50/30">
+
+              <strong class="text-emerald-900 font-mono block text-[10px] uppercase">
+                PROPÓSITO / CONSECUENCIAS
+              </strong>
+
+              <p class="text-zinc-700 mt-1">
+                Oculta la complejidad, reduce dependencias directas y protege al cliente
+                frente a cambios internos.
+              </p>
+
+            </div>
+
+
+            <div class="bento-card p-3 border-l-4 border-l-rose-500 bg-rose-50/30">
+
+              <strong class="text-rose-900 font-mono block text-[10px] uppercase">
+                COSTO DE DISEÑO
+              </strong>
+
+              <p class="text-zinc-700 mt-1">
+                Riesgo de que la Fachada se convierta en una clase demasiado grande.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            class="md:col-span-4 bento-card p-3 bg-cyan-950 text-white flex flex-col justify-between text-xs border-cyan-800">
+
+            <div>
+
+              <span class="text-amber-300 font-mono font-bold block text-[10px]">
+                CONEXIÓN DE DISEÑO
+              </span>
+
+              <p class="text-cyan-100 font-medium mt-1">
+                Ahora tenemos un único punto de acceso, pero el cálculo del importe
+                puede variar según la política que necesitemos aplicar.
+              </p>
+
+            </div>
+
+            <div class="font-bold font-mono text-cyan-300 text-right mt-2">
+              → STRATEGY
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 16: STRATEGY - PORTADA / PROBLEMA -->
+      <!-- ========================================== -->
+      <div id="slide-16" class="slide-content slide-enter space-y-6 max-w-5xl mx-auto w-full hidden text-center">
+        <span class="badge-pill bg-emerald-100 text-emerald-800">Patrón de Comportamiento 05</span>
+
+        <h1 class="text-6xl md:text-8xl font-black font-display text-brand-strategy tracking-tight uppercase">
+          VARIAR
+        </h1>
+
+        <div
+          class="inline-block bg-slate-900 text-emerald-300 font-mono text-sm px-6 py-2 rounded-full border border-emerald-500/50 shadow-lg">
+          → STRATEGY (ESTRATEGIA)
+        </div>
+
+        <div
+          class="bento-card p-6 max-w-2xl mx-auto text-left space-y-3 bg-gradient-to-b from-emerald-50/40 to-white border-emerald-200">
+          <strong class="text-xs font-mono font-bold text-emerald-700 block uppercase">PROBLEMA DE DISEÑO</strong>
+          <p class="text-sm font-semibold text-zinc-800 leading-relaxed">
+            Intercambiar algoritmos de cálculo de precio (Normal, Descuento, Cliente Frecuente) sin saturar la clase
+            Pedido con condicionales.
+          </p>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 17: STRATEGY - TEORÍA & UML GENERAL -->
+      <!-- ========================================== -->
+      <div id="slide-17" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+
+        <div class="flex justify-between items-center border-b border-emerald-200 pb-2">
+          <div>
+            <span class="badge-pill bg-emerald-100 text-emerald-800">
+              Comportamiento GoF
+            </span>
+
+            <h2 class="text-2xl font-bold font-display text-zinc-900">
+              Strategy: Teoría & Estructura General
+            </h2>
+          </div>
+
+          <span class="font-mono text-xs font-bold text-emerald-600">
+            STRATEGY (1/2)
+          </span>
+        </div>
+
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+
+          <!-- ====================================== -->
+          <!-- TEORÍA -->
+          <!-- ====================================== -->
+          <div class="md:col-span-5 space-y-3">
+
+            <div class="bento-card p-4 border-l-4 border-l-emerald-600">
+              <strong class="text-[11px] font-mono font-bold text-emerald-700 block uppercase">
+                PROBLEMA
+              </strong>
+
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed font-medium">
+                ¿Cómo diseñar diversos algoritmos o políticas que están relacionadas?
+                ¿Cómo diseñar que estos algoritmos o políticas puedan cambiar?
+              </p>
+            </div>
+
+
+            <div class="bento-card p-4 border-l-4 border-l-teal-500">
+              <strong class="text-[11px] font-mono font-bold text-teal-700 block uppercase">
+                SOLUCIÓN
+              </strong>
+
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed">
+                Encapsular cada algoritmo o política en una estrategia independiente
+                bajo una interfaz común.
+              </p>
+            </div>
+
+
+            <div class="bento-card p-4 border-l-4 border-l-green-600">
+              <strong class="text-[11px] font-mono font-bold text-green-800 block uppercase">
+                PARTICIPANTES
+              </strong>
+
+              <div class="text-xs text-zinc-700 font-mono mt-1 space-y-0.5">
+                <p>• <strong>Context:</strong> Delega el cálculo</p>
+                <p>• <strong>Strategy:</strong> Interfaz común</p>
+                <p>• <strong>ConcreteStrategy:</strong> Algoritmo concreto</p>
+              </div>
+            </div>
+
+          </div>
+
+
+          <!-- ====================================== -->
+          <!-- DIAGRAMA UML -->
+          <!-- ====================================== -->
+          <div class="md:col-span-7 dark-card p-5 flex flex-col justify-between relative">
+
+            <span class="text-xs font-mono text-emerald-400 font-bold">
+              DIAGRAMA UML ESTRUCTURAL GENERAL (GOF)
+            </span>
+
+
+            <div class="relative w-full h-[240px] my-auto">
+
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+
+                <defs>
+
+                  <!-- Flecha blanca -->
+                  <marker id="strategy-arrow-white" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6"
+                    markerHeight="6" orient="auto">
+                    <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+                  </marker>
+
+
+                  <!-- Triángulo hueco para realización -->
+                  <marker id="strategy-triangle-hollow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8"
+                    markerHeight="8" orient="auto">
+                    <polygon points="0,0 10,5 0,10" fill="#0F172A" stroke="#10B981" stroke-width="1.5" />
+                  </marker>
+
+
+                  <!-- Rombo hueco para asociación agregada -->
+                  <marker id="strategy-diamond" viewBox="0 0 12 12" refX="2" refY="6" markerWidth="9" markerHeight="9"
+                    orient="auto">
+                    <polygon points="1,6 6,1 11,6 6,11" fill="#0F172A" stroke="#10B981" stroke-width="1.5" />
+                  </marker>
+
+                </defs>
+
+
+                <!-- ================================= -->
+                <!-- Client → Context -->
+                <!-- ================================= -->
+                <line x1="15%" y1="200" x2="15%" y2="110" stroke="#FFFFFF" stroke-width="1.5"
+                  marker-end="url(#strategy-arrow-white)" />
+
+
+                <!-- ================================= -->
+                <!-- Context → Strategy -->
+                <!-- asociación / agregación -->
+                <!-- ================================= -->
+                <line x1="30%" y1="55" x2="70%" y2="55" stroke="#10B981" stroke-width="1.5"
+                  marker-start="url(#strategy-diamond)" marker-end="url(#strategy-arrow-white)" />
+
+
+                <!-- ================================= -->
+                <!-- ConcreteStrategyA → Strategy -->
+                <!-- ================================= -->
+
+                <!-- tramo vertical -->
+                <line x1="45%" y1="150" x2="45%" y2="200" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+                <!-- tramo horizontal -->
+                <line x1="45%" y1="150" x2="90%" y2="150" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+                <!-- llegada a Strategy -->
+                <line x1="80%" y1="150" x2="80%" y2="82" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3"
+                  marker-end="url(#strategy-triangle-hollow)" />
+
+
+                <!-- ================================= -->
+                <!-- ConcreteStrategyB → Strategy -->
+                <!-- ================================= -->
+
+                <line x1="90%" y1="150" x2="90%" y2="200" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              </svg>
+
+
+              <!-- ====================================== -->
+              <!-- CONTEXT -->
+              <!-- ====================================== -->
+              <div class="absolute left-[4%] top-4 uml-box w-40 border-emerald-500 bg-slate-800" style="z-index: 2;">
+
+                <span class="text-emerald-300 font-bold block text-center">
+                  Context
+                </span>
+
+                <div class="text-[8px] text-zinc-300 font-mono mt-2 space-y-1 border-t border-slate-700 pt-1">
+
+                  <p>
+                    - strategy: Strategy
+                  </p>
+
+                  <p class="text-emerald-300">
+                    + setStrategy(s)
+                  </p>
+
+                  <p>
+                    + doSomething()
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              <!-- ====================================== -->
+              <!-- STRATEGY -->
+              <!-- ====================================== -->
+              <div class="absolute right-[4%] top-4 uml-box w-40 border-teal-500 text-center" style="z-index: 2;">
+
+                <span class="text-teal-300 font-bold block">
+                  «interface»
+                </span>
+
+                <span class="text-teal-300 font-bold block">
+                  Strategy
+                </span>
+
+                <span class="text-[8px] text-zinc-300 block mt-1">
+                  + execute(data)
+                </span>
+
+              </div>
+
+
+              <!-- ====================================== -->
+              <!-- CLIENT -->
+              <!-- ====================================== -->
+              <div class="absolute left-[6%] bottom-1 uml-box w-28 text-center" style="z-index: 2;">
+
+                <span class="text-emerald-300 font-bold block">
+                  Client
+                </span>
+
+              </div>
+
+
+              <!-- ====================================== -->
+              <!-- CONCRETE STRATEGY A -->
+              <!-- ====================================== -->
+              <div class="absolute left-[40%] bottom-1 uml-box w-32 text-center" style="z-index: 2;">
+
+                <span class="text-[8px] font-bold">
+                  ConcreteStrategyA
+                </span>
+
+              </div>
+
+
+              <!-- ====================================== -->
+              <!-- CONCRETE STRATEGY B -->
+              <!-- ====================================== -->
+              <div class="absolute right-[4%] bottom-1 uml-box w-32 text-center" style="z-index: 2;">
+
+                <span class="text-[8px] font-bold">
+                  ConcreteStrategyB
+                </span>
+
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 18: STRATEGY - APLICACIÓN AL SISTEMA -->
+      <!-- ========================================== -->
+      <div id="slide-18" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+
+        <div class="flex justify-between items-center border-b border-emerald-200 pb-2">
+          <div>
+            <span class="badge-pill bg-emerald-100 text-emerald-800">
+              Aplicación Práctica
+            </span>
+
+            <h2 class="text-2xl font-bold font-display text-zinc-900">
+              Strategy: Cálculo Intercambiable de Precio
+            </h2>
+          </div>
+
+          <span class="font-mono text-xs font-bold text-emerald-600">
+            STRATEGY (2/2)
+          </span>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- DIAGRAMA -->
+        <!-- ========================================== -->
+        <div class="dark-card p-5 relative">
+
+          <span class="text-xs font-mono text-emerald-400 font-bold block mb-3">
+            DIAGRAMA APLICADO AL SISTEMA DE PEDIDOS
+          </span>
+
+
+          <div class="relative w-full h-[230px]">
+
+
+            <!-- ====================================== -->
+            <!-- RELACIONES UML -->
+            <!-- ====================================== -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+
+              <defs>
+
+                <!-- Flecha blanca -->
+                <marker id="strategy-system-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6"
+                  markerHeight="6" orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+                </marker>
+
+                <!-- Triángulo hueco para realización -->
+                <marker id="strategy-system-triangle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8"
+                  markerHeight="8" orient="auto">
+                  <polygon points="0,0 10,5 0,10" fill="#0F172A" stroke="#10B981" stroke-width="1.5" />
+                </marker>
+
+                <!-- Rombo de agregación -->
+                <marker id="strategy-system-diamond" viewBox="0 0 12 12" refX="2" refY="6" markerWidth="9"
+                  markerHeight="9" orient="auto">
+                  <polygon points="1,6 6,1 11,6 6,11" fill="#0F172A" stroke="#10B981" stroke-width="1.5" />
+                </marker>
+
+              </defs>
+
+
+              <!-- Pedido → EstrategiaPrecio -->
+              <line x1="37%" y1="34" x2="51%" y2="34" stroke="#10B981" stroke-width="1.5"
+                marker-end="url(#strategy-system-arrow)" marker-start="url(#strategy-system-diamond)" />
+
+
+              <!-- PrecioNormal → EstrategiaPrecio -->
+
+              <line x1="16%" y1="180" x2="16%" y2="120" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="16%" y1="120" x2="75%" y2="120" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="75%" y1="120" x2="75%" y2="62" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3"
+                marker-end="url(#strategy-system-triangle)" />
+
+
+              <!-- DescuentoPorcentaje → EstrategiaPrecio -->
+
+              <line x1="50%" y1="180" x2="50%" y2="120" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="50%" y1="120" x2="75%" y2="120" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+
+              <!-- DescuentoClienteFrecuente → EstrategiaPrecio -->
+
+              <line x1="84%" y1="180" x2="84%" y2="120" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+              <line x1="84%" y1="120" x2="75%" y2="120" stroke="#10B981" stroke-width="1.5" stroke-dasharray="3 3" />
+
+            </svg>
+
+
+            <!-- ====================================== -->
+            <!-- PEDIDO / CONTEXT -->
+            <!-- ====================================== -->
+            <div class="absolute left-[2%] top-2 uml-box border-emerald-500 bg-slate-800 p-3"
+              style="width: 35%; z-index: 2;">
+
+              <span class="text-emerald-300 text-sm font-bold block">
+                Pedido (Context)
+              </span>
+
+              <div class="text-xs text-zinc-300 font-mono mt-1 space-y-0.5">
+
+                <p>
+                  - estrategia: EstrategiaPrecio
+                </p>
+
+                <p>
+                  + setEstrategia(e)
+                </p>
+
+                <p>
+                  + calcularTotal(): double
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <!-- ====================================== -->
+            <!-- INTERFAZ -->
+            <!-- ====================================== -->
+            <div class="absolute right-[1%] top-2 uml-box border-teal-500 text-center" style="width: 48%; z-index: 2;">
+
+              <span class="text-teal-300 font-bold block">
+                «interface» EstrategiaPrecio
+              </span>
+
+              <span class="text-[9px] text-zinc-300 block mt-1">
+                + calcularPrecio(pedido): double
+              </span>
+
+            </div>
+
+
+            <!-- ====================================== -->
+            <!-- ESTRATEGIAS CONCRETAS -->
+            <!-- ====================================== -->
+
+            <div class="absolute left-0 right-0 bottom-1 grid grid-cols-3 gap-2" style="z-index: 2;">
+
+              <div class="uml-box text-center">
+                <span class="text-[8px] font-bold">
+                  PrecioNormal
+                </span>
+
+                <span class="text-[8px] text-zinc-400 block mt-1">
+                  + calcularPrecio(pedido)
+                </span>
+              </div>
+
+
+              <div class="uml-box text-center">
+                <span class="text-[8px] font-bold">
+                  DescuentoPorcentaje
+                </span>
+
+                <span class="text-[8px] text-zinc-400 block mt-1">
+                  + calcularPrecio(pedido)
+                </span>
+              </div>
+
+
+              <div class="uml-box text-center">
+                <span class="text-[8px] font-bold">
+                  DescuentoClienteFrecuente
+                </span>
+
+                <span class="text-[8px] text-zinc-400 block mt-1">
+                  + calcularPrecio(pedido)
+                </span>
+              </div>
+
+            </div>
+
+          </div>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- CONSECUENCIAS + CONEXIÓN -->
+        <!-- ========================================== -->
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+          <div class="md:col-span-8 grid grid-cols-2 gap-3 text-xs">
+
+            <div class="bento-card p-3 border-l-4 border-l-emerald-500 bg-emerald-50/30">
+
+              <strong class="text-emerald-900 font-mono block text-[10px] uppercase">
+                PROPÓSITO / CONSECUENCIAS
+              </strong>
+
+              <p class="text-zinc-700 mt-1">
+                Permite cambiar la política de precio en tiempo de ejecución sin alterar
+                la clase Pedido.
+              </p>
+
+            </div>
+
+
+            <div class="bento-card p-3 border-l-4 border-l-rose-500 bg-rose-50/30">
+
+              <strong class="text-rose-900 font-mono block text-[10px] uppercase">
+                COSTO DE DISEÑO
+              </strong>
+
+              <p class="text-zinc-700 mt-1">
+                Incrementa las clases y exige seleccionar y configurar la estrategia
+                desde el cliente.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            class="md:col-span-4 bento-card p-3 bg-emerald-950 text-white flex flex-col justify-between text-xs border-emerald-800">
+
+            <div>
+
+              <span class="text-amber-300 font-mono font-bold block text-[10px]">
+                CONEXIÓN DE DISEÑO
+              </span>
+
+              <p class="text-emerald-100 font-medium mt-1">
+                Podemos cambiar la estrategia, pero algunas promociones necesitan
+                combinar varias reglas de manera conjunta.
+              </p>
+
+            </div>
+
+            <div class="font-bold font-mono text-emerald-300 text-right mt-2">
+              → COMPOSITE
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 19: COMPOSITE - PORTADA / PROBLEMA -->
+      <!-- ========================================== -->
+      <div id="slide-19" class="slide-content slide-enter space-y-6 max-w-5xl mx-auto w-full hidden text-center">
+        <span class="badge-pill bg-fuchsia-100 text-fuchsia-800">Patrón Estructural 06</span>
+
+        <h1 class="text-6xl md:text-8xl font-black font-display text-brand-composite tracking-tight uppercase">
+          COMPONER
+        </h1>
+
+        <div
+          class="inline-block bg-slate-900 text-fuchsia-300 font-mono text-sm px-6 py-2 rounded-full border border-fuchsia-500/50 shadow-lg">
+          → COMPOSITE (OBJETOS COMPUESTOS)
+        </div>
+
+        <div
+          class="bento-card p-6 max-w-2xl mx-auto text-left space-y-3 bg-gradient-to-b from-fuchsia-50/40 to-white border-fuchsia-200">
+          <strong class="text-xs font-mono font-bold text-fuchsia-700 block uppercase">PROBLEMA DE DISEÑO</strong>
+          <p class="text-sm font-semibold text-zinc-800 leading-relaxed">
+            Tratar promociones simples (20% Off) y promociones compuestas (Black Friday = 20% + Envío Gratis) de manera
+            uniforme polimórfica.
+          </p>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 20: COMPOSITE - TEORÍA & UML GENERAL -->
+      <!-- ========================================== -->
+      <div id="slide-20" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+
+        <div class="flex justify-between items-center border-b border-fuchsia-200 pb-2">
+          <div>
+            <span class="badge-pill bg-fuchsia-100 text-fuchsia-800">
+              Estructural GoF
+            </span>
+
+            <h2 class="text-2xl font-bold font-display text-zinc-900">
+              Composite: Teoría & Estructura General
+            </h2>
+          </div>
+
+          <span class="font-mono text-xs font-bold text-fuchsia-600">
+            COMPOSITE (1/2)
+          </span>
+        </div>
+
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-5 items-stretch">
+
+          <!-- ====================================== -->
+          <!-- TEORÍA -->
+          <!-- ====================================== -->
+          <div class="md:col-span-5 space-y-3">
+
+            <div class="bento-card p-4 border-l-4 border-l-fuchsia-600">
+              <strong class="text-[11px] font-mono font-bold text-fuchsia-700 block uppercase">
+                PROBLEMA
+              </strong>
+
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed font-medium">
+                ¿Cómo tratar un grupo o una estructura compuesta del mismo modo
+                (polimórficamente) que un objeto no compuesto (atómico)?
+              </p>
+            </div>
+
+
+            <div class="bento-card p-4 border-l-4 border-l-pink-500">
+              <strong class="text-[11px] font-mono font-bold text-pink-700 block uppercase">
+                SOLUCIÓN
+              </strong>
+
+              <p class="text-xs text-zinc-800 mt-1 leading-relaxed">
+                Utilizar una interfaz común para objetos individuales
+                (Leaf) y objetos compuestos (Composite).
+              </p>
+            </div>
+
+
+            <div class="bento-card p-4 border-l-4 border-l-purple-600">
+              <strong class="text-[11px] font-mono font-bold text-purple-700 block uppercase">
+                PARTICIPANTES
+              </strong>
+
+              <div class="text-xs text-zinc-700 font-mono mt-1 space-y-0.5">
+                <p>• <strong>Component:</strong> Interfaz común</p>
+                <p>• <strong>Leaf:</strong> Objeto individual</p>
+                <p>• <strong>Composite:</strong> Contiene colección de Component</p>
+              </div>
+            </div>
+
+          </div>
+
+
+          <!-- ====================================== -->
+          <!-- DIAGRAMA UML -->
+          <!-- ====================================== -->
+          <div class="md:col-span-7 dark-card p-5 flex flex-col justify-between relative">
+
+            <span class="text-xs font-mono text-fuchsia-400 font-bold">
+              DIAGRAMA UML ESTRUCTURAL GENERAL (GOF)
+            </span>
+
+
+            <div class="relative w-full h-[250px] my-auto">
+
+              <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+                <defs>
+
+                  <!-- Triángulo hueco: realización -->
+                  <marker id="composite-triangle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8"
+                    orient="auto">
+                    <polygon points="0,0 10,5 0,10" fill="#0F172A" stroke="#D946EF" stroke-width="1.5" />
+                  </marker>
+
+
+                  <!-- Rombo hueco: agregación -->
+                  <marker id="composite-diamond" viewBox="0 0 12 12" refX="2" refY="6" markerWidth="9" markerHeight="9"
+                    orient="auto">
+                    <polygon points="1,6 6,1 11,6 6,11" fill="#0F172A" stroke="#FFFFFF" stroke-width="1.5" />
+                  </marker>
+
+                </defs>
+
+                <!-- ================================= -->
+                <!-- Leaf → Component -->
+                <!-- Realización -->
+                <!-- ================================= -->
+
+                <line x1="25%" y1="130" x2="25%" y2="110" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3" />
+
+                <line x1="25%" y1="110" x2="50%" y2="110" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3" />
+
+                <line x1="50%" y1="110" x2="50%" y2="71" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3"
+                  marker-end="url(#composite-triangle)" />
+
+
+                <!-- ================================= -->
+                <!-- Composite → Component -->
+                <!-- Realización -->
+                <!-- ================================= -->
+
+                <line x1="67%" y1="110" x2="50%" y2="110" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3" />
+
+
+                <!-- ================================= -->
+                <!-- Composite → children -->
+                <!-- Agregación -->
+                <!-- ================================= -->
+
+                <!-- Composite → rombo -->
+                <line x1="75%" y1="180" x2="75%" y2="195" stroke="#FFFFFF" stroke-width="1.5"
+                  marker-end="url(#composite-diamond)" />
+
+                <!-- Desde el rombo hacia la línea común -->
+                <line x1="75%" y1="195" x2="75%" y2="205" stroke="#FFFFFF" stroke-width="1.5" />
+
+                <!-- Línea común -->
+                <line x1="25%" y1="205" x2="75%" y2="205" stroke="#FFFFFF" stroke-width="1.5" />
+
+                <!-- Hacia Leaf 1 -->
+                <line x1="25%" y1="205" x2="25%" y2="215" stroke="#FFFFFF" stroke-width="1.5" />
+
+                <!-- Hacia Leaf 2 -->
+                <line x1="50%" y1="205" x2="50%" y2="215" stroke="#FFFFFF" stroke-width="1.5" />
+
+                <!-- Hacia Composite hijo -->
+                <line x1="75%" y1="205" x2="75%" y2="215" stroke="#FFFFFF" stroke-width="1.5" />
+
+              </svg>
+
+
+              <!-- ====================================== -->
+              <!-- COMPONENT -->
+              <!-- ====================================== -->
+              <div class="absolute left-1/2 -translate-x-1/2 top-1 uml-box w-48 text-center border-fuchsia-500"
+                style="z-index: 2;">
+
+                <span class="text-fuchsia-300 font-bold block">
+                  «interface»
+                </span>
+
+                <span class="text-fuchsia-300 font-bold block">
+                  Component
+                </span>
+
+                <span class="text-[8px] text-zinc-300 block mt-1">
+                  + execute()
+                </span>
+
+              </div>
+
+
+              <!-- ====================================== -->
+              <!-- LEAF -->
+              <!-- ====================================== -->
+              <div class="absolute left-[5%] top-[95px] uml-box w-36 text-center" style="z-index: 2;">
+
+                <span class="text-purple-300 font-bold block">
+                  Leaf
+                </span>
+
+                <span class="text-[8px] text-zinc-400 block mt-1">
+                  + execute()
+                </span>
+
+              </div>
+
+
+              <!-- ====================================== -->
+              <!-- COMPOSITE -->
+              <!-- ====================================== -->
+              <div class="absolute right-[2%] top-[88px] uml-box w-48 text-center border-fuchsia-400 bg-purple-950/60"
+                style="z-index: 2;">
+                <span class="text-fuchsia-300 font-bold block">
+                  Composite
+                </span>
+
+                <div class="text-[8px] text-zinc-300 font-mono mt-1 space-y-0.5">
+
+                  <p>
+                    - children: List&lt;Component&gt;
+                  </p>
+
+                  <p>
+                    + add(c: Component)
+                  </p>
+
+                  <p>
+                    + remove(c: Component)
+                  </p>
+
+                  <p>
+                    + execute()
+                  </p>
+
+                </div>
+
+              </div>
+
+
+              <!-- ====================================== -->
+              <!-- CHILDREN -->
+              <!-- ====================================== -->
+              <div class="absolute left-[7%] right-[2%] bottom-0 grid grid-cols-3 gap-3" style="z-index: 2;">
+
+                <div class="uml-box text-center">
+                  <span class="text-[8px] font-bold">
+                    Leaf
+                  </span>
+                </div>
+
+                <div class="uml-box text-center">
+                  <span class="text-[8px] font-bold">
+                    Leaf
+                  </span>
+                </div>
+
+                <div class="uml-box text-center">
+                  <span class="text-[8px] font-bold">
+                    Composite
+                  </span>
+                </div>
+
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 21: COMPOSITE - APLICACIÓN AL SISTEMA -->
+      <!-- ========================================== -->
+      <div id="slide-21" class="slide-content slide-enter space-y-4 max-w-6xl mx-auto w-full hidden">
+
+        <div class="flex justify-between items-center border-b border-fuchsia-200 pb-2">
+          <div>
+            <span class="badge-pill bg-fuchsia-100 text-fuchsia-800">
+              Aplicación Práctica
+            </span>
+
+            <h2 class="text-2xl font-bold font-display text-zinc-900">
+              Composite: Promociones Simples y Compuestas
+            </h2>
+          </div>
+
+          <span class="font-mono text-xs font-bold text-fuchsia-600">
+            COMPOSITE (2/2)
+          </span>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- DIAGRAMA APLICADO -->
+        <!-- ========================================== -->
+        <div class="dark-card p-5 relative">
+
+          <span class="text-xs font-mono text-fuchsia-400 font-bold block mb-3">
+            DIAGRAMA APLICADO AL SISTEMA DE PEDIDOS
+          </span>
+
+
+          <div class="relative w-full h-[270px]">
+
+
+            <!-- ====================================== -->
+            <!-- RELACIONES UML -->
+            <!-- ====================================== -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none" style="z-index: 1;">
+
+              <defs>
+
+                <!-- Triángulo hueco: realización -->
+                <marker id="promotion-triangle" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8"
+                  orient="auto">
+                  <polygon points="0,0 10,5 0,10" fill="#0F172A" stroke="#D946EF" stroke-width="1.5" />
+                </marker>
+
+
+                <!-- Rombo hueco: agregación -->
+                <marker id="promotion-diamond" viewBox="0 0 8 8" refX="2" refY="4" markerWidth="6" markerHeight="6"
+                  orient="auto">
+                  <polygon points="1,4 4,1 7,4 4,7" fill="#0F172A" stroke="#FFFFFF" stroke-width="1.2" />
+                </marker>
+
+
+                <!-- Flecha normal -->
+                <marker id="promotion-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6"
+                  orient="auto">
+                  <path d="M 0 0 L 10 5 L 0 10 Z" fill="#FFFFFF" />
+                </marker>
+
+              </defs>
+
+
+              <!-- ================================= -->
+              <!-- Pedido → Promocion -->
+              <!-- ================================= -->
+
+              <line x1="14%" y1="35" x2="40%" y2="35" stroke="#FFFFFF" stroke-width="1.5"
+                marker-end="url(#promotion-arrow)" />
+
+
+              <!-- ================================= -->
+              <!-- PromocionSimple → Promocion -->
+              <!-- Realización -->
+              <!-- ================================= -->
+
+              <line x1="15%" y1="110" x2="15%" y2="90" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3" />
+
+              <line x1="15%" y1="90" x2="50%" y2="90" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3" />
+
+              <line x1="50%" y1="90" x2="50%" y2="65" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3"
+                marker-end="url(#promotion-triangle)" />
+
+
+              <!-- ================================= -->
+              <!-- PromocionCompuesta → Promocion -->
+              <!-- Realización -->
+              <!-- ================================= -->
+
+              <line x1="85%" y1="110" x2="85%" y2="90" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3" />
+
+              <line x1="85%" y1="90" x2="50%" y2="90" stroke="#D946EF" stroke-width="1.5" stroke-dasharray="4 3" />
+
+
+              <!-- ================================= -->
+              <!-- PromocionCompuesta → hijas -->
+              <!-- Agregación -->
+              <!-- ================================= -->
+
+              <!-- Composite → rombo -->
+              <line x1="85%" y1="220" x2="85%" y2="222" stroke="#FFFFFF" stroke-width="1.5"
+                marker-end="url(#promotion-diamond)" />
+
+              <!-- Desde el rombo hacia la línea común -->
+              <line x1="85%" y1="222" x2="85%" y2="228" stroke="#FFFFFF" stroke-width="1.5" />
+
+              <!-- Línea común -->
+              <line x1="25%" y1="228" x2="90%" y2="228" stroke="#FFFFFF" stroke-width="1.5" />
+
+              <!-- Hija 1 -->
+              <line x1="25%" y1="228" x2="25%" y2="235" stroke="#FFFFFF" stroke-width="1.5" />
+
+              <!-- Hija 2 -->
+              <line x1="50%" y1="228" x2="50%" y2="235" stroke="#FFFFFF" stroke-width="1.5" />
+
+              <!-- Hija 3 -->
+              <line x1="90%" y1="228" x2="90%" y2="235" stroke="#FFFFFF" stroke-width="1.5" />
+
+            </svg>
+
+
+            <!-- ====================================== -->
+            <!-- PEDIDO -->
+            <!-- ====================================== -->
+            <div class="absolute left-[2%] top-4 uml-box w-32 text-center" style="z-index: 2;">
+
+              <span class="text-purple-300 font-bold block">
+                Pedido
+              </span>
+
+            </div>
+
+
+            <!-- ====================================== -->
+            <!-- INTERFAZ PROMOCION -->
+            <!-- ====================================== -->
+            <div class="absolute left-1/2 -translate-x-1/2 top-2 uml-box w-56 text-center border-fuchsia-500"
+              style="z-index: 2;">
+
+              <span class="text-fuchsia-300 font-bold block">
+                «interface» Promocion
+              </span>
+
+              <span class="text-[9px] text-zinc-300 block mt-1 font-mono">
+                + aplicar(pedido): double
+              </span>
+
+            </div>
+
+
+            <!-- ====================================== -->
+            <!-- PROMOCION SIMPLE -->
+            <!-- ====================================== -->
+            <div class="absolute left-[4%] top-[110px] uml-box w-48 text-center" style="z-index: 2;">
+
+              <span class="text-purple-300 font-bold block">
+                PromocionSimple
+              </span>
+
+              <div class="text-[8px] text-zinc-400 font-mono mt-1 space-y-0.5">
+
+                <p>
+                  - descripcion: String
+                </p>
+
+                <p>
+                  - descuento: double
+                </p>
+
+                <p>
+                  + aplicar(pedido): double
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <!-- ====================================== -->
+            <!-- PROMOCION COMPUESTA -->
+            <!-- ====================================== -->
+            <div class="absolute right-[2%] top-[110px] uml-box w-56 text-center border-fuchsia-400 bg-purple-950/60"
+              style="z-index: 2;">
+
+              <span class="text-fuchsia-300 font-bold block">
+                PromocionCompuesta
+              </span>
+
+              <div class="text-[8px] text-zinc-300 font-mono mt-1 space-y-0.5">
+
+                <p>
+                  - hijas: List&lt;Promocion&gt;
+                </p>
+
+                <p>
+                  + add(p: Promocion)
+                </p>
+
+                <p>
+                  + remove(p: Promocion)
+                </p>
+
+                <p>
+                  + getChildren(): List&lt;Promocion&gt;
+                </p>
+
+                <p>
+                  + aplicar(pedido): double
+                </p>
+
+              </div>
+
+            </div>
+
+
+            <!-- ====================================== -->
+            <!-- HIJAS DE LA PROMOCIÓN COMPUESTA -->
+            <!-- ====================================== -->
+            <div class="absolute left-[17%] bottom-0 uml-box w-36 text-center" style="z-index: 2;">
+              <span class="text-[8px] font-bold">
+                PromocionSimple
+              </span>
+            </div>
+
+            <div class="absolute left-[41%] bottom-0 uml-box w-36 text-center" style="z-index: 2;">
+              <span class="text-[8px] font-bold">
+                PromocionSimple
+              </span>
+            </div>
+
+            <div class="absolute right-[2%] bottom-0 uml-box w-36 text-center" style="z-index: 2;">
+              <span class="text-[8px] font-bold">
+                PromocionCompuesta
+              </span>
+            </div>
+
+
+          </div>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- CONSECUENCIAS + CONEXIÓN -->
+        <!-- ========================================== -->
+
+        <div class="grid grid-cols-1 md:grid-cols-12 gap-4">
+
+          <div class="md:col-span-8 grid grid-cols-2 gap-3 text-xs">
+
+            <div class="bento-card p-3 border-l-4 border-l-emerald-500 bg-emerald-50/30">
+
+              <strong class="text-emerald-900 font-mono block text-[10px] uppercase">
+                PROPÓSITO / CONSECUENCIAS
+              </strong>
+
+              <p class="text-zinc-700 mt-1">
+                Tratamiento uniforme de promociones atómicas y grupos de promociones.
+                Se integra perfectamente con Strategy.
+              </p>
+
+            </div>
+
+
+            <div class="bento-card p-3 border-l-4 border-l-rose-500 bg-rose-50/30">
+
+              <strong class="text-rose-900 font-mono block text-[10px] uppercase">
+                COSTO DE DISEÑO
+              </strong>
+
+              <p class="text-zinc-700 mt-1">
+                La interfaz común puede resultar demasiado general para componentes
+                específicos.
+              </p>
+
+            </div>
+
+          </div>
+
+
+          <div
+            class="md:col-span-4 bento-card p-3 bg-fuchsia-950 text-white flex flex-col justify-between text-xs border-fuchsia-800">
+
+            <div>
+
+              <span class="text-amber-300 font-mono font-bold block text-[10px]">
+                CONEXIÓN DE DISEÑO
+              </span>
+
+              <p class="text-fuchsia-100 font-medium mt-1">
+                Ya podemos combinar promociones individuales y compuestas.
+                Ahora veamos cómo quedan integrados los seis patrones en el diseño final.
+              </p>
+
+            </div>
+
+            <div class="font-bold font-mono text-fuchsia-300 text-right mt-2">
+              → DISEÑO FINAL
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 22: DIAGRAMA UML INTEGRADO FINAL -->
+      <!-- ========================================== -->
+      <div id="slide-22" class="slide-content slide-enter space-y-3 max-w-6xl mx-auto w-full hidden">
+        <div class="flex justify-between items-center border-b border-purple-200 pb-2">
+          <div>
+            <span class="badge-pill bg-purple-600 text-white">
+              Diseño Arquitectónico Integrado
+            </span>
+
+            <h2 class="text-xl font-bold font-display text-zinc-900">
+              Integración de los 6 Patrones GoF en el Sistema
+            </h2>
+          </div>
+
+          <div class="flex gap-1.5 text-[10px] font-bold font-mono">
+            <span class="bg-purple-100 text-purple-800 px-2 py-0.5 rounded">
+              Adapter
+            </span>
+
+            <span class="bg-blue-100 text-blue-800 px-2 py-0.5 rounded">
+              Factory
+            </span>
+
+            <span class="bg-orange-100 text-orange-800 px-2 py-0.5 rounded">
+              Singleton
+            </span>
+
+            <span class="bg-cyan-100 text-cyan-800 px-2 py-0.5 rounded">
+              Facade
+            </span>
+
+            <span class="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+              Strategy
+            </span>
+
+            <span class="bg-fuchsia-100 text-fuchsia-800 px-2 py-0.5 rounded">
+              Composite
+            </span>
+          </div>
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- IMAGEN DEL DIAGRAMA UML INTEGRADO -->
+        <!-- ========================================== -->
+
+        <div class="dark-card p-3 relative overflow-hidden">
+
+          <div class="w-full h-[450px] flex items-center justify-center">
+
+            <img src="diagrama-integrado-final.png"
+              alt="Diagrama UML integrado del sistema de pedidos con los seis patrones GoF"
+              class="max-w-full max-h-full w-auto h-auto object-contain" />
+
+          </div>
+
+        </div>
+
+
+        <!-- ========================================== -->
+        <!-- BARRA DE SÍNTESIS CONCEPTUAL -->
+        <!-- ========================================== -->
+
+        <div class="grid grid-cols-6 gap-2 text-center font-mono text-[10px] font-bold">
+
+          <div class="p-2 bg-purple-100 text-purple-900 rounded-lg">
+            ADAPTER → integra
+          </div>
+
+          <div class="p-2 bg-blue-100 text-blue-900 rounded-lg">
+            FACTORY → crea
+          </div>
+
+          <div class="p-2 bg-orange-100 text-orange-900 rounded-lg">
+            SINGLETON → controla
+          </div>
+
+          <div class="p-2 bg-cyan-100 text-cyan-900 rounded-lg">
+            FACADE → simplifica
+          </div>
+
+          <div class="p-2 bg-emerald-100 text-emerald-900 rounded-lg">
+            STRATEGY → varía
+          </div>
+
+          <div class="p-2 bg-fuchsia-100 text-fuchsia-900 rounded-lg">
+            COMPOSITE → compone
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SLIDE 23: CIERRE & SÍNTESIS DE DISEÑO -->
+      <!-- ========================================== -->
+      <div id="slide-23" class="slide-content slide-enter space-y-6 max-w-4xl mx-auto w-full hidden text-center">
+        <span class="badge-pill bg-purple-100 text-purple-800">Síntesis de Exposición Oral</span>
+
+        <h2 class="text-4xl md:text-6xl font-extrabold font-display text-zinc-900 leading-tight">
+          Los Patrones como Vocabulario de Diseño
+        </h2>
+
+        <p class="text-sm md:text-base text-zinc-600 max-w-2xl mx-auto leading-relaxed">
+          Un patrón de diseño no se elige por simple estética. Surge cuando el problema de software exige una decisión
+          de arquitectura estructurada y reutilizable.
+        </p>
+
+        <div class="p-6 bg-purple-50 border border-purple-200 rounded-2xl max-w-lg mx-auto space-y-2">
+          <p class="font-bold text-purple-950 font-display text-lg">¡Muchas gracias por su atención!</p>
+          <p class="text-xs text-purple-700">Espacio abierto para preguntas de la mesa evaluadora y debate.</p>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- FOOTER FORMAL DISTRIBUIDO (REQUERIMIENTO 2) -->
+    <footer class="border-t border-zinc-200/80 pt-3 flex justify-between items-center text-xs font-mono text-zinc-500">
+      <div>Clase N°18: Aula invertida</div>
+      <div>Grupo N°4</div>
+    </footer>
+
+  </div>
+
+  <!-- CONTROL SCRIPT CON EVENTOS DE NAVEGACIÓN LIMPIOS DE PRESENTACIÓN -->
+  <script>
+    let currentSlide = 1;
+    const totalSlides = 23;
+
+    const slideTopics = [
+      "PORTADA • DISEÑO DE SISTEMAS",
+      "MARCO TEÓRICO GOF & FAMILIAS",
+      "SISTEMA INICIAL DE PEDIDOS",
+      "ADAPTER • TRANSICIÓN",
+      "ADAPTER • TEORÍA & UML GENERAL",
+      "ADAPTER • APLICACIÓN PRÁCTICA",
+      "FACTORY • TRANSICIÓN",
+      "FACTORY • TEORÍA & UML GENERAL",
+      "FACTORY • APLICACIÓN PRÁCTICA",
+      "SINGLETON • TRANSICIÓN",
+      "SINGLETON • TEORÍA & UML GENERAL",
+      "SINGLETON • APLICACIÓN PRÁCTICA",
+      "FACADE • TRANSICIÓN",
+      "FACADE • TEORÍA & UML GENERAL",
+      "FACADE • APLICACIÓN PRÁCTICA",
+      "STRATEGY • TRANSICIÓN",
+      "STRATEGY • TEORÍA & UML GENERAL",
+      "STRATEGY • APLICACIÓN PRÁCTICA",
+      "COMPOSITE • TRANSICIÓN",
+      "COMPOSITE • TEORÍA & UML GENERAL",
+      "COMPOSITE • APLICACIÓN PRÁCTICA",
+      "DISEÑO INTEGRADO FINAL",
+      "CIERRE DE LA EXPOSICIÓN"
+    ];
+
+    function updateSlideDisplay() {
+      // Ocultar todas las slides
+      for (let i = 1; i <= totalSlides; i++) {
+        const slide = document.getElementById(`slide-${i}`);
+        if (slide) slide.classList.add('hidden');
+      }
+
+      // Mostrar slide actual
+      const activeSlide = document.getElementById(`slide-${currentSlide}`);
+      if (activeSlide) activeSlide.classList.remove('hidden');
+
+      // Actualizar encabezados
+      const padNum = currentSlide < 10 ? `0${currentSlide}` : `${currentSlide}`;
+      document.getElementById('slide-counter').innerText = `${padNum} / ${totalSlides}`;
+      document.getElementById('slide-topic-badge').innerText = slideTopics[currentSlide - 1];
+    }
+
+    function nextSlide() {
+      if (currentSlide < totalSlides) {
+        currentSlide++;
+        updateSlideDisplay();
+      }
+    }
+
+    function prevSlide() {
+      if (currentSlide > 1) {
+        currentSlide--;
+        updateSlideDisplay();
+      }
+    }
+
+    // Avanzar con clic directo en el escenario de la diapositiva
+    function advanceSlideOnStageClick(e) {
+      // Ignorar si hace clic en el botón de pantalla completa
+      if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+      nextSlide();
+    }
+
+    // Control de teclado para presentación oral (Right / Space / Enter / Left)
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'Enter' || e.key === 'PageDown') {
+        e.preventDefault();
+        nextSlide();
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+        e.preventDefault();
+        prevSlide();
+      }
+    });
+
+    // Control de Pantalla Completa
+    function toggleFullScreen(e) {
+      if (e) e.stopPropagation();
+      const elem = document.documentElement;
+      if (!document.fullscreenElement) {
+        if (elem.requestFullscreen) {
+          elem.requestFullscreen();
+        } else if (elem.webkitRequestFullscreen) {
+          elem.webkitRequestFullscreen();
+        }
+      } else {
+        if (document.exitFullscreen) {
+          document.exitFullscreen();
+        }
+      }
+    }
+
+    window.onload = function () {
+      updateSlideDisplay();
+    };
+  </script>
+</body>
+
+</html>
