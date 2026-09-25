@@ -224,55 +224,86 @@
     <main class="flex-1 my-4 flex flex-col justify-center relative overflow-hidden">
 
       <!-- ========================================== -->
-      <!-- SLIDE 01: PORTADA -->
-      <!-- ========================================== -->
-      <div id="slide-1" class="slide-content slide-enter space-y-8 max-w-5xl mx-auto w-full text-center py-6">
-        <div class="space-y-3">
-          <span class="badge-pill bg-purple-100 text-purple-700 text-xs">
-            Diseño de Sistemas de Información • Exposición Oral
-          </span>
-          <h1 class="text-5xl md:text-7xl font-extrabold font-display text-zinc-900 tracking-tight">
-            Patrones de Diseño GoF
-          </h1>
-          <p class="text-xl md:text-2xl font-medium text-purple-600 font-display">
-            Evolución de un Sistema de Gestión de Pedidos
-          </p>
-        </div>
+<!-- SLIDE 01: PORTADA -->
+<!-- ========================================== -->
+<div id="slide-1" class="slide-content slide-enter space-y-8 max-w-5xl mx-auto w-full text-center py-6">
+  <div class="space-y-3">
+    <span class="badge-pill bg-purple-100 text-purple-700 text-xs">
+      Diseño de Sistemas de Información • Exposición Oral
+    </span>
 
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto pt-4">
-          <div
-            class="bento-card p-6 text-center space-y-3 bg-gradient-to-b from-purple-50/60 to-white border-purple-200 shadow-sm">
-            <div
-              class="w-12 h-12 bg-purple-600 text-white rounded-2xl mx-auto flex items-center justify-center font-bold text-xl shadow-md">
-              📋
-            </div>
-            <div>
-              <h3 class="font-bold text-zinc-900 font-display text-base">Acceso QR 1</h3>
-              <p class="text-xs text-zinc-500 mt-1">Fichas técnicas ejecutivas de los seis patrones GoF</p>
-            </div>
-            <div
-              class="w-24 h-24 mx-auto bg-slate-900 text-white rounded-xl flex items-center justify-center font-mono text-[9px] border-2 border-purple-300">
-              [ CÓDIGO QR 1 ]
-            </div>
-          </div>
+    <h1 class="text-5xl md:text-7xl font-extrabold font-display text-zinc-900 tracking-tight">
+      Patrones de Diseño GoF
+    </h1>
 
-          <div
-            class="bento-card p-6 text-center space-y-3 bg-gradient-to-b from-pink-50/60 to-white border-pink-200 shadow-sm">
-            <div
-              class="w-12 h-12 bg-pink-600 text-white rounded-2xl mx-auto flex items-center justify-center font-bold text-xl shadow-md">
-              🖥️
-            </div>
-            <div>
-              <h3 class="font-bold text-zinc-900 font-display text-base">Acceso QR 2</h3>
-              <p class="text-xs text-zinc-500 mt-1">Soporte visual navegable proyectado en la exposición</p>
-            </div>
-            <div
-              class="w-24 h-24 mx-auto bg-slate-900 text-white rounded-xl flex items-center justify-center font-mono text-[9px] border-2 border-pink-300">
-              [ CÓDIGO QR 2 ]
-            </div>
-          </div>
-        </div>
+    <p class="text-xl md:text-2xl font-medium text-purple-600 font-display">
+      Evolución de un Sistema de Gestión de Pedidos
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto pt-4">
+
+    <!-- QR 1 -->
+    <div
+      class="bento-card p-6 text-center space-y-3 bg-gradient-to-b from-purple-50/60 to-white border-purple-200 shadow-sm">
+
+      <div
+        class="w-12 h-12 bg-purple-600 text-white rounded-2xl mx-auto flex items-center justify-center font-bold text-xl shadow-md">
+        📋
       </div>
+
+      <div>
+        <h3 class="font-bold text-zinc-900 font-display text-base">
+          Fichas técnicas
+        </h3>
+
+        <p class="text-xs text-zinc-500 mt-1">
+          Fichas técnicas ejecutivas de los seis patrones GoF
+        </p>
+      </div>
+
+      <div class="w-28 h-28 mx-auto flex items-center justify-center">
+        <img
+          src="qr-fichas.png"
+          alt="Código QR para acceder a las fichas técnicas"
+          class="w-full h-full object-contain"
+        />
+      </div>
+
+    </div>
+
+
+    <!-- QR 2 -->
+    <div
+      class="bento-card p-6 text-center space-y-3 bg-gradient-to-b from-pink-50/60 to-white border-pink-200 shadow-sm">
+
+      <div
+        class="w-12 h-12 bg-pink-600 text-white rounded-2xl mx-auto flex items-center justify-center font-bold text-xl shadow-md">
+        🖥️
+      </div>
+
+      <div>
+        <h3 class="font-bold text-zinc-900 font-display text-base">
+          Presentación online
+        </h3>
+
+        <p class="text-xs text-zinc-500 mt-1">
+          Soporte visual navegable proyectado en la exposición
+        </p>
+      </div>
+
+      <div class="w-28 h-28 mx-auto flex items-center justify-center">
+        <img
+          src="qr-presentacion.png"
+          alt="Código QR para acceder a la presentación online"
+          class="w-full h-full object-contain"
+        />
+      </div>
+
+    </div>
+
+  </div>
+</div>
 
       <!-- ========================================== -->
       <!-- SLIDE 02: CONCEPTO GOF & LAS 3 FAMILIAS -->
